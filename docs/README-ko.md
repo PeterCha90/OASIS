@@ -121,8 +121,8 @@ git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
 Slack 승인 버튼 활성화:
 
 ```bash
-openclaw config set approvals.exec.enabled true
-openclaw config set approvals.exec.mode session
+openclaw config set approvals.plugin.enabled true
+openclaw config set approvals.plugin.mode session
 ```
 
 게이트웨이 재시작:

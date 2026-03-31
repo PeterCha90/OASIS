@@ -120,8 +120,8 @@ Empty `config` uses all defaults.
 Enable Slack approval buttons:
 
 ```bash
-openclaw config set approvals.exec.enabled true
-openclaw config set approvals.exec.mode session
+openclaw config set approvals.plugin.enabled true
+openclaw config set approvals.plugin.mode session
 ```
 
 Restart the gateway:
