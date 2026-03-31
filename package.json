@@ -32,10 +32,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/peter/oasis"
+    "url": "https://github.com/PeterCha90/oasis"
   },
-  "homepage": "https://github.com/peter/oasis#readme",
+  "homepage": "https://github.com/PeterCha90/oasis#readme",
   "bugs": {
-    "url": "https://github.com/peter/oasis/issues"
+    "url": "https://github.com/PeterCha90/oasis/issues"
   }
 }
