@@ -306,7 +306,7 @@ const oasisPlugin = {
           };
         }
 
-        // ── 5. Require approval ──
+        // ── 5. Block with risk info — user approves via chat ──
         const { title, description } = formatApprovalMessage(
           toolName,
           params ?? {},
@@ -314,18 +314,8 @@ const oasisPlugin = {
         );
 
         return {
-          requireApproval: {
-            title,
-            description,
-            severity: risk.severity,
-            timeoutMs,
-            timeoutBehavior,
-            onResolution: async (decision: string) => {
-              api.logger.info(
-                `[oasis] ${toolName} (${toolCallId}): ${decision} — risk was ${risk.score.toFixed(2)}`,
-              );
-            },
-          },
+          block: true,
+          blockReason: `${title}\n\n${description}\n\n사용자가 승인하면 다시 시도하세요.`,
         };
       },
       { name: "oasis-security-gate" },

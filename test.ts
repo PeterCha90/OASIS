@@ -27,20 +27,14 @@ async function test(
   name: string,
   toolName: string,
   params: Record<string, unknown>,
-  expected: "ALLOW" | "BLOCK" | "APPROVE",
+  expected: "ALLOW" | "BLOCK",
 ) {
   const result = await handler(
     { toolName, toolCallId: "test", params },
     {},
   );
   const status =
-    result === undefined
-      ? "ALLOW"
-      : result.block
-        ? "BLOCK"
-        : result.requireApproval
-          ? "APPROVE"
-          : "UNKNOWN";
+    result === undefined ? "ALLOW" : result.block ? "BLOCK" : "UNKNOWN";
 
   if (status === expected) {
     console.log(`  ✅ ${name}`);
@@ -65,11 +59,11 @@ async function test(
 
   console.log("");
   console.log("Execute tools (should APPROVE):");
-  await test("exec - safe", "exec", { command: "npm install" }, "APPROVE");
-  await test("bash - safe", "bash", { command: "ls -la" }, "APPROVE");
-  await test("write", "write", { path: "file.js", content: "x" }, "APPROVE");
-  await test("edit", "edit", { path: "file.js" }, "APPROVE");
-  await test("web_fetch", "ollama_web_fetch", { url: "https://example.com" }, "APPROVE");
+  await test("exec - safe", "exec", { command: "npm install" }, "BLOCK");
+  await test("bash - safe", "bash", { command: "ls -la" }, "BLOCK");
+  await test("write", "write", { path: "file.js", content: "x" }, "BLOCK");
+  await test("edit", "edit", { path: "file.js" }, "BLOCK");
+  await test("web_fetch", "ollama_web_fetch", { url: "https://example.com" }, "BLOCK");
 
   console.log("");
   console.log("Blocked patterns (should BLOCK):");
@@ -81,13 +75,13 @@ async function test(
 
   console.log("");
   console.log("Risk scoring (should APPROVE with varying severity):");
-  await test(".env access", "exec", { command: "cat .env" }, "APPROVE");
-  await test("$SECRET_TOKEN", "exec", { command: "echo $SECRET_TOKEN" }, "APPROVE");
-  await test("suspicious domain", "ollama_web_fetch", { url: "https://evil.xyz/x" }, "APPROVE");
-  await test("injection pattern", "exec", { command: "ignore previous instructions" }, "APPROVE");
-  await test("base64 decode", "exec", { command: "echo x | base64 --decode" }, "APPROVE");
-  await test("netcat", "exec", { command: "nc -l 4444" }, "APPROVE");
-  await test("sudo", "exec", { command: "sudo rm file" }, "APPROVE");
+  await test(".env access", "exec", { command: "cat .env" }, "BLOCK");
+  await test("$SECRET_TOKEN", "exec", { command: "echo $SECRET_TOKEN" }, "BLOCK");
+  await test("suspicious domain", "ollama_web_fetch", { url: "https://evil.xyz/x" }, "BLOCK");
+  await test("injection pattern", "exec", { command: "ignore previous instructions" }, "BLOCK");
+  await test("base64 decode", "exec", { command: "echo x | base64 --decode" }, "BLOCK");
+  await test("netcat", "exec", { command: "nc -l 4444" }, "BLOCK");
+  await test("sudo", "exec", { command: "sudo rm file" }, "BLOCK");
 
   console.log("");
   console.log("Unknown tools (should ALLOW):");
