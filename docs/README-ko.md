@@ -122,7 +122,7 @@ Slack 승인 버튼 활성화:
 
 ```bash
 openclaw config set approvals.exec.enabled true
-openclaw config set approvals.exec.mode targets
+openclaw config set approvals.exec.mode session
 ```
 
 게이트웨이 재시작:

@@ -121,7 +121,7 @@ Enable Slack approval buttons:
 
 ```bash
 openclaw config set approvals.exec.enabled true
-openclaw config set approvals.exec.mode targets
+openclaw config set approvals.exec.mode session
 ```
 
 Restart the gateway:
