@@ -1,0 +1,41 @@
+{
+  "name": "openclaw-oasis",
+  "version": "0.1.0",
+  "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals. Prompt injection defense plugin with read/execute classification, rule-based risk scoring, and Slack approval workflow.",
+  "type": "module",
+  "main": "index.ts",
+  "files": [
+    "index.ts",
+    "openclaw.plugin.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "scripts": {
+    "test": "npx tsx test.ts",
+    "lint": "npx tsc --noEmit --strict --moduleResolution node index.ts || true"
+  },
+  "keywords": [
+    "openclaw",
+    "openclaw-plugin",
+    "security",
+    "prompt-injection",
+    "defense",
+    "approval",
+    "oasis"
+  ],
+  "author": "peter",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/peter/oasis"
+  },
+  "homepage": "https://github.com/peter/oasis#readme",
+  "bugs": {
+    "url": "https://github.com/peter/oasis/issues"
+  }
+}
