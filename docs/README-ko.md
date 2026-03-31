@@ -116,7 +116,16 @@ git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
 }
 ```
 
-빈 `config`로도 기본값으로 동작한다. 게이트웨이 재시작:
+빈 `config`로도 기본값으로 동작한다.
+
+Slack 승인 버튼 활성화:
+
+```bash
+openclaw config set approvals.exec.enabled true
+openclaw config set approvals.exec.mode targets
+```
+
+게이트웨이 재시작:
 
 ```bash
 openclaw gateway restart
