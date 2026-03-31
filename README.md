@@ -97,11 +97,11 @@ All risk assessment is **deterministic** — same input always produces the same
 ## Installation
 
 ```bash
-# Clone to extensions directory
-git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
+# Install via npm
+openclaw plugins install @petercha90/oasis
 
-# Register in openclaw.json
-openclaw config set plugins.allow '["openclaw-web-search", "slack", "oasis"]'
+# Or clone manually
+git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
 ```
 
 Add to `plugins.entries` in `openclaw.json`:

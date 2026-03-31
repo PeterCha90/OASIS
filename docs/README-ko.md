@@ -98,11 +98,11 @@
 ## 설치
 
 ```bash
-# extensions 디렉토리에 클론
-git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
+# npm으로 설치
+openclaw plugins install @petercha90/oasis
 
-# openclaw.json에 등록
-openclaw config set plugins.allow '["openclaw-web-search", "slack", "oasis"]'
+# 또는 직접 클론
+git clone https://github.com/PeterCha90/oasis.git ~/.openclaw/extensions/oasis
 ```
 
 `openclaw.json`의 `plugins.entries`에 추가:

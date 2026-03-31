@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-oasis",
+  "name": "@petercha90/oasis",
   "version": "0.1.0",
   "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals. Prompt injection defense plugin with read/execute classification, rule-based risk scoring, and Slack approval workflow.",
   "type": "module",
