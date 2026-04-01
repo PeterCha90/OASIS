@@ -85,33 +85,55 @@ export async function handleBeforeToolCall(
   return {};
 }
 
-interface MessageSendingResult {
-  content?: string;
-  cancel?: boolean;
+/**
+ * Extract text content from an AgentMessage for secret scanning.
+ * AgentMessage can be a standard LLM message (role + content) or custom type.
+ */
+function extractMessageText(message: unknown): string {
+  if (!message || typeof message !== "object") return "";
+  const msg = message as Record<string, unknown>;
+
+  // Standard LLM message: { role, content }
+  if (typeof msg.content === "string") return msg.content;
+
+  // Content might be an array of parts (multimodal messages)
+  if (Array.isArray(msg.content)) {
+    return msg.content
+      .map((part: unknown) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object" && "text" in part) {
+          return (part as { text: string }).text;
+        }
+        return "";
+      })
+      .join(" ");
+  }
+
+  // Fallback: try text field
+  if (typeof msg.text === "string") return msg.text;
+
+  return "";
+}
+
+interface BeforeMessageWriteResult {
+  block?: boolean;
 }
 
 /**
- * Scans outgoing messages for secret content.
+ * Scans agent messages for secret content before they are written/sent.
  * Blocks messages that contain credentials, tokens, or keys.
  */
-export function handleMessageSending(
-  event: { content: string },
+export function handleBeforeMessageWrite(
+  event: { message: unknown },
   _config: OasisConfig
-): MessageSendingResult {
-  const result = scanTextForSecrets(event.content);
+): BeforeMessageWriteResult {
+  const text = extractMessageText(event.message);
+  if (!text) return {};
+
+  const result = scanTextForSecrets(text);
 
   if (result.detected) {
-    return {
-      cancel: true,
-      content: [
-        `🚨 *OASIS: Message Blocked*`,
-        ``,
-        `This message was blocked because it contains sensitive data:`,
-        `${result.reasons.map((r) => `• ${r}`).join("\n")}`,
-        ``,
-        `_Secrets should never be sent as messages. Use secure channels or environment-specific tools._`,
-      ].join("\n"),
-    };
+    return { block: true };
   }
 
   return {};
@@ -119,7 +141,8 @@ export function handleMessageSending(
 
 /**
  * OpenClaw plugin entry point.
- * Registers the before_tool_call hook for deterministic risk scoring.
+ * Registers the before_tool_call hook for deterministic risk scoring
+ * and before_message_write hook for secret leakage prevention.
  */
 export default definePluginEntry({
   id: "oasis",
@@ -154,18 +177,19 @@ export default definePluginEntry({
       return result;
     }, { priority: 10 });
 
-    // ── Secret Leakage Guard: message_sending ──
-    api.on("message_sending", (event, _ctx) => {
-      const result = handleMessageSending(
-        { content: (event as { content?: string }).content ?? "" },
-        config
-      );
+    // ── Secret Leakage Guard: before_message_write ──
+    api.on("before_message_write", (event, _ctx) => {
+      const text = extractMessageText(event.message);
+      if (!text) return;
 
-      if (result.cancel) {
-        logger.warn("[OASIS] Message blocked: contains secrets");
+      const result = scanTextForSecrets(text);
+
+      if (result.detected) {
+        logger.warn(
+          `[OASIS] Message blocked: ${result.reasons.join(", ")}`
+        );
+        return { block: true };
       }
-
-      return result;
     }, { priority: 10 });
   },
 });

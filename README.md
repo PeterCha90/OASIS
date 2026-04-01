@@ -75,10 +75,10 @@ Agent requests tool call
 
 ## Requirements
 
-| Requirement | Minimum Version |
-|-------------|-----------------|
-| OpenClaw Gateway | `>= 2026.3.28` |
-| Node.js | `>= 22.14` |
+| Requirement      | Minimum Version |
+| ---------------- | --------------- |
+| OpenClaw Gateway | `>= 2026.3.28`  |
+| Node.js          | `>= 22.14`      |
 
 ---
 
@@ -100,28 +100,29 @@ openclaw gateway restart
         "enabled": true,
         "config": {
           "threshold": 0.3,
-          "approvalTimeoutMs": 120000
-        }
-      }
-    }
+          "approvalTimeoutMs": 120000,
+        },
+      },
+    },
   },
   "approvals": {
     "plugin": {
       "enabled": true,
-      "mode": "session"
-    }
+      "mode": "session",
+    },
   },
   "channels": {
     "slack": {
       "capabilities": {
-        "interactiveReplies": true
-      }
-    }
-  }
+        "interactiveReplies": true,
+      },
+    },
+  },
 }
 ```
 
 > **Important:**
+>
 > - `interactiveReplies: true` enables native Slack Block Kit buttons (Allow / Deny) instead of text commands.
 > - `mode: "session"` ensures approval requests appear in the same conversation thread, not the channel.
 
@@ -129,9 +130,9 @@ openclaw gateway restart
 
 ## Tool Classification
 
-| Classification | Tools | Behavior |
-|----------------|-------|----------|
-| **Read** (free pass) | `read`, `glob`, `grep`, `web_search`, `list`, `cat` | No analysis |
+| Classification          | Tools                                                                      | Behavior         |
+| ----------------------- | -------------------------------------------------------------------------- | ---------------- |
+| **Read** (free pass)    | `read`, `glob`, `grep`, `web_search`, `list`, `cat`                        | No analysis      |
 | **Execute** (risk scan) | `exec`, `bash`, `write`, `edit`, `web_fetch`, `file_delete`, `apply_patch` | Pattern matching |
 
 Customize via config:
@@ -140,8 +141,8 @@ Customize via config:
 {
   "config": {
     "customReadTools": ["my_safe_tool"],
-    "customExecuteTools": ["my_dangerous_tool"]
-  }
+    "customExecuteTools": ["my_dangerous_tool"],
+  },
 }
 ```
 
@@ -151,17 +152,17 @@ Customize via config:
 
 All scoring is **deterministic pattern matching**. No LLM involved.
 
-| ID | Detection | Score | Action |
-|----|-----------|-------|--------|
-| `BLOCK_DESTRUCTIVE` | `rm -rf /`, fork bomb, `mkfs`, `dd if=/dev/zero` | **1.0** | 🚨 Blocked |
-| `BLOCK_PIPE_SHELL` | `curl \| bash`, `wget \| sh` | **1.0** | 🚨 Blocked |
-| `PROMPT_INJECTION` | `ignore previous instructions`, `you are now` | 0.9 | Ask approval |
-| `SECRET_ACCESS` | `$AWS_SECRET`, `process.env.TOKEN` | 0.8 | Ask approval |
-| `SUSPICIOUS_DOMAIN` | `.xyz`, `.tk`, `.ml`, `.pw`, `.top` | 0.8 | Ask approval |
-| `DATA_EXFILTRATION` | `curl -X POST`, `nc -e`, reverse shell | 0.7 | Ask approval |
-| `SENSITIVE_FILE` | `.env`, `.ssh/id_rsa`, `.aws/credentials` | 0.6 | Ask approval |
-| `PRIVILEGE_ESCALATION` | `sudo`, `chmod 777`, `chown root` | 0.5 | Ask approval |
-| `EXTERNAL_URL` | Non-safe-domain HTTP access | 0.3 | Ask approval |
+| ID                     | Detection                                        | Score   | Action       |
+| ---------------------- | ------------------------------------------------ | ------- | ------------ |
+| `BLOCK_DESTRUCTIVE`    | `rm -rf /`, fork bomb, `mkfs`, `dd if=/dev/zero` | **1.0** | 🚨 Blocked   |
+| `BLOCK_PIPE_SHELL`     | `curl \| bash`, `wget \| sh`                     | **1.0** | 🚨 Blocked   |
+| `PROMPT_INJECTION`     | `ignore previous instructions`, `you are now`    | 0.9     | Ask approval |
+| `SECRET_ACCESS`        | `$AWS_SECRET`, `process.env.TOKEN`               | 0.8     | Ask approval |
+| `SUSPICIOUS_DOMAIN`    | `.xyz`, `.tk`, `.ml`, `.pw`, `.top`              | 0.8     | Ask approval |
+| `DATA_EXFILTRATION`    | `curl -X POST`, `nc -e`, reverse shell           | 0.7     | Ask approval |
+| `SENSITIVE_FILE`       | `.env`, `.ssh/id_rsa`, `.aws/credentials`        | 0.6     | Ask approval |
+| `PRIVILEGE_ESCALATION` | `sudo`, `chmod 777`, `chown root`                | 0.5     | Ask approval |
+| `EXTERNAL_URL`         | Non-safe-domain HTTP access                      | 0.3     | Ask approval |
 
 - **Score 1.0** = always blocked, no approval possible
 - **Score > threshold** = user approval required (Slack/Discord/Telegram buttons)
@@ -172,15 +173,15 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 
 ## Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `threshold` | `number` | `0.3` | Risk threshold (0.0 strictest ~ 0.9 most lenient) |
-| `approvalTimeoutMs` | `number` | `120000` | Approval timeout in ms (auto-deny on timeout) |
-| `safeDomains` | `string[]` | `[]` | Additional safe domains (skip EXTERNAL_URL scoring) |
-| `customPatterns` | `object[]` | `[]` | Custom detection patterns (`{id, regex, score}`) |
-| `customReadTools` | `string[]` | `[]` | Additional read-only tools |
-| `customExecuteTools` | `string[]` | `[]` | Additional execute tools |
-| `logLevel` | `string` | `"info"` | `debug`, `info`, `warn`, `error` |
+| Option               | Type       | Default  | Description                                         |
+| -------------------- | ---------- | -------- | --------------------------------------------------- |
+| `threshold`          | `number`   | `0.3`    | Risk threshold (0.0 strictest ~ 0.9 most lenient)   |
+| `approvalTimeoutMs`  | `number`   | `120000` | Approval timeout in ms (auto-deny on timeout)       |
+| `safeDomains`        | `string[]` | `[]`     | Additional safe domains (skip EXTERNAL_URL scoring) |
+| `customPatterns`     | `object[]` | `[]`     | Custom detection patterns (`{id, regex, score}`)    |
+| `customReadTools`    | `string[]` | `[]`     | Additional read-only tools                          |
+| `customExecuteTools` | `string[]` | `[]`     | Additional execute tools                            |
+| `logLevel`           | `string`   | `"info"` | `debug`, `info`, `warn`, `error`                    |
 
 ### Built-in Safe Domains
 

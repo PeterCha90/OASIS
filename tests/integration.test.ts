@@ -1,6 +1,6 @@
 // tests/integration.test.ts
 import { describe, test, expect } from "vitest";
-import { handleBeforeToolCall, handleMessageSending } from "../src/index.js";
+import { handleBeforeToolCall, handleBeforeMessageWrite } from "../src/index.js";
 import { defaultConfig } from "../src/config.js";
 
 describe("Plugin Integration — handleBeforeToolCall", () => {
@@ -53,7 +53,6 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
       { toolName: "exec", params: { command: "sudo apt install vim" } },
       config
     );
-    // score 0.5 < threshold 0.9 → auto-allow
     expect(result).toEqual({});
   });
 
@@ -80,45 +79,68 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
   });
 });
 
-describe("Plugin Integration — handleMessageSending", () => {
+describe("Plugin Integration — handleBeforeMessageWrite", () => {
   test("normal message should pass through", () => {
-    const result = handleMessageSending(
-      { content: "Here is the file structure of the project." },
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "Here is the file structure." } },
       defaultConfig
     );
     expect(result).toEqual({});
   });
 
   test("message containing AWS key should be blocked", () => {
-    const result = handleMessageSending(
-      { content: "The key is AKIAIOSFODNN7EXAMPLE123456" },
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "The key is AKIAIOSFODNN7EXAMPLE123456" } },
       defaultConfig
     );
-    expect(result.cancel).toBe(true);
-    expect(result.content).toContain("OASIS");
+    expect(result.block).toBe(true);
   });
 
   test("message containing Slack token should be blocked", () => {
-    const result = handleMessageSending(
-      { content: "CEO_BOT_TOKEN=xoxb-fake-token-for-testing" },
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "CEO_BOT_TOKEN=xoxb-fake-token-for-testing" } },
       defaultConfig
     );
-    expect(result.cancel).toBe(true);
+    expect(result.block).toBe(true);
   });
 
   test("message containing private key should be blocked", () => {
-    const result = handleMessageSending(
-      { content: "-----BEGIN RSA PRIVATE KEY-----\nMIIE..." },
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "-----BEGIN RSA PRIVATE KEY-----\nMIIE..." } },
       defaultConfig
     );
-    expect(result.cancel).toBe(true);
+    expect(result.block).toBe(true);
   });
 
   test("message with password assignment should be blocked", () => {
-    const result = handleMessageSending(
-      { content: "DATABASE_PASSWORD=supersecret123" },
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "DATABASE_PASSWORD=supersecret123" } },
       defaultConfig
     );
-    expect(result.cancel).toBe(true);
+    expect(result.block).toBe(true);
+  });
+
+  test("message with empty content should pass through", () => {
+    const result = handleBeforeMessageWrite(
+      { message: { role: "assistant", content: "" } },
+      defaultConfig
+    );
+    expect(result).toEqual({});
+  });
+
+  test("message with multipart content should scan all parts", () => {
+    const result = handleBeforeMessageWrite(
+      {
+        message: {
+          role: "assistant",
+          content: [
+            { type: "text", text: "Here is your secret: " },
+            { type: "text", text: "AKIAIOSFODNN7EXAMPLE123456" },
+          ],
+        },
+      },
+      defaultConfig
+    );
+    expect(result.block).toBe(true);
   });
 });

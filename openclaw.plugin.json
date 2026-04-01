@@ -2,7 +2,7 @@
   "id": "oasis",
   "name": "OASIS",
   "description": "OpenClaw Antidote for Suspicious Injection Signals — deterministic tool security guard with Slack/Discord/Telegram native approval buttons",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
