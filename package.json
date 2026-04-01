@@ -43,8 +43,7 @@
     "build": "tsc -p tsconfig.build.json",
     "prepublishOnly": "npm run build",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "install-oasis": "bash install.sh"
+    "test:watch": "vitest"
   },
   "peerDependencies": {
     "openclaw": ">=2026.3.28"
