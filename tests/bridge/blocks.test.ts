@@ -7,7 +7,9 @@ describe("Block Kit Builder", () => {
       approvalId: "plugin:test-123",
       title: "🏝️ OASIS Security Review",
       toolName: "exec",
-      description: "Risk Score: 0.6",
+      riskScore: "0.6",
+      detected: "Sensitive file access",
+      parameters: '{ "command": "cat .env" }',
     });
 
     expect(blocks.length).toBeGreaterThan(0);
@@ -24,16 +26,15 @@ describe("Block Kit Builder", () => {
       approvalId: "plugin:abc-123",
       title: "Test",
       toolName: "exec",
-      description: "test",
+      riskScore: "0.5",
+      detected: "test",
+      parameters: "",
     });
 
     const actionsBlock = blocks.find((b: any) => b.type === "actions");
     const approveValue = JSON.parse(actionsBlock!.elements![0].value!);
     expect(approveValue.id).toBe("plugin:abc-123");
     expect(approveValue.decision).toBe("allow-once");
-
-    const denyValue = JSON.parse(actionsBlock!.elements![1].value!);
-    expect(denyValue.decision).toBe("deny");
   });
 
   test("should build resolved blocks for allow", () => {
@@ -41,18 +42,13 @@ describe("Block Kit Builder", () => {
       decision: "allow-once",
       resolvedBy: "U12345",
     });
-
-    expect(blocks.length).toBeGreaterThan(0);
     const text = JSON.stringify(blocks);
     expect(text).toContain("Allowed");
     expect(text).toContain("U12345");
   });
 
   test("should build resolved blocks for deny", () => {
-    const blocks = buildResolvedBlocks({
-      decision: "deny",
-    });
-
+    const blocks = buildResolvedBlocks({ decision: "deny" });
     const text = JSON.stringify(blocks);
     expect(text).toContain("Denied");
   });

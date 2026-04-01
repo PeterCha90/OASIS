@@ -76,12 +76,14 @@ export function createBoltApp(params: BoltAppParams) {
       await updateClient.chat.update({
         channel,
         ts,
-        text,
+        text: `🏝️ ${parsed.title}`,
         blocks: buildApprovalBlocks({
           approvalId: parsed.approvalId,
           title: parsed.title,
           toolName: parsed.toolName,
-          description: parsed.description,
+          riskScore: parsed.riskScore,
+          detected: parsed.detected,
+          parameters: parsed.parameters,
         }) as any,
       });
       console.log(

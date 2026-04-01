@@ -21,7 +21,7 @@ Expires in: 120s
 Reply with: /approve <id> allow-once|allow-always|deny`;
 
 describe("Approval Parser", () => {
-  test("should parse approval ID from message", () => {
+  test("should parse approval ID", () => {
     const result = parseApprovalMessage(SAMPLE_MESSAGE);
     expect(result).not.toBeNull();
     expect(result!.approvalId).toBe("plugin:bc92b8cc-9e7e-4f48-b647-3aa7617771ac");
@@ -40,6 +40,21 @@ describe("Approval Parser", () => {
   test("should parse title", () => {
     const result = parseApprovalMessage(SAMPLE_MESSAGE);
     expect(result!.title).toContain("OASIS");
+  });
+
+  test("should parse risk score", () => {
+    const result = parseApprovalMessage(SAMPLE_MESSAGE);
+    expect(result!.riskScore).toBe("0.6");
+  });
+
+  test("should parse detected reason", () => {
+    const result = parseApprovalMessage(SAMPLE_MESSAGE);
+    expect(result!.detected).toBe("Sensitive file access");
+  });
+
+  test("should parse parameters", () => {
+    const result = parseApprovalMessage(SAMPLE_MESSAGE);
+    expect(result!.parameters).toContain("cat ~/.openclaw/.env");
   });
 
   test("should return null for non-approval message", () => {

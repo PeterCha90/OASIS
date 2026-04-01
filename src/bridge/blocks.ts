@@ -2,7 +2,9 @@ interface ApprovalBlocksParams {
   approvalId: string;
   title: string;
   toolName: string;
-  description: string;
+  riskScore: string;
+  detected: string;
+  parameters: string;
 }
 
 interface Block {
@@ -14,7 +16,7 @@ interface Block {
 }
 
 export function buildApprovalBlocks(params: ApprovalBlocksParams): Block[] {
-  return [
+  const blocks: Block[] = [
     {
       type: "header",
       text: { type: "plain_text", text: params.title, emoji: true },
@@ -23,13 +25,26 @@ export function buildApprovalBlocks(params: ApprovalBlocksParams): Block[] {
       type: "section",
       fields: [
         { type: "mrkdwn", text: `*Tool:* \`${params.toolName}\`` },
-        { type: "mrkdwn", text: `*ID:* \`${params.approvalId.slice(0, 12)}...\`` },
+        { type: "mrkdwn", text: `*Risk Score:* \`${params.riskScore}\` / 1.0` },
       ],
     },
-    {
+  ];
+
+  if (params.detected) {
+    blocks.push({
       type: "section",
-      text: { type: "mrkdwn", text: params.description.slice(0, 2000) },
-    },
+      text: { type: "mrkdwn", text: `*Detected:* ${params.detected}` },
+    });
+  }
+
+  if (params.parameters) {
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `*Parameters:*\n\`\`\`${params.parameters.slice(0, 500)}\`\`\`` },
+    });
+  }
+
+  blocks.push(
     { type: "divider" },
     {
       type: "actions",
@@ -49,8 +64,10 @@ export function buildApprovalBlocks(params: ApprovalBlocksParams): Block[] {
           value: JSON.stringify({ id: params.approvalId, decision: "deny" }),
         },
       ],
-    },
-  ];
+    }
+  );
+
+  return blocks;
 }
 
 interface ResolvedBlocksParams {
