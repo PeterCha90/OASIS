@@ -84,10 +84,36 @@ Agent requests tool call
 
 ## Installation
 
+### 1. Plugin (risk scoring engine)
+
 ```bash
 openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
+
+### 2. Slack Bridge (approval buttons)
+
+```bash
+npx @petercha90/oasis bridge
+```
+
+The bridge auto-reads all Slack bot/app tokens from `~/.openclaw/openclaw.json` and `~/.openclaw/.env`. No manual token setup needed.
+
+```
+🏝️  OASIS Slack Bridge
+════════════════════════════════════════
+
+  Gateway: ws://127.0.0.1:18789
+
+  ✅ ceo-bot: connected
+  ✅ cpo-bot: connected
+  ✅ cto-bot: connected
+
+🏝️  Bridge running — 3 bot(s) connected
+   Press Ctrl+C to stop
+```
+
+> **Why two steps?** The plugin runs inside the OpenClaw Gateway (risk analysis), but the Gateway cannot render Slack Block Kit buttons directly. The bridge is a lightweight sidecar that adds the button UI via Socket Mode.
 
 ### Recommended Config
 
@@ -100,31 +126,21 @@ openclaw gateway restart
         "enabled": true,
         "config": {
           "threshold": 0.3,
-          "approvalTimeoutMs": 120000,
-        },
-      },
-    },
+          "approvalTimeoutMs": 120000
+        }
+      }
+    }
   },
   "approvals": {
     "plugin": {
       "enabled": true,
-      "mode": "session",
-    },
-  },
-  "channels": {
-    "slack": {
-      "capabilities": {
-        "interactiveReplies": true,
-      },
-    },
-  },
+      "mode": "session"
+    }
+  }
 }
 ```
 
-> **Important:**
->
-> - `interactiveReplies: true` enables native Slack Block Kit buttons (Allow / Deny) instead of text commands.
-> - `mode: "session"` ensures approval requests appear in the same conversation thread, not the channel.
+> `mode: "session"` ensures approval requests appear in the same conversation thread.
 
 ---
 
@@ -221,6 +237,8 @@ openclaw gateway restart
 
 ```
 oasis/
+├── bin/
+│   └── oasis.js              # CLI entry (npx @petercha90/oasis bridge)
 ├── src/
 │   ├── index.ts              # Plugin entry (definePluginEntry)
 │   ├── scanner.ts            # Risk scoring engine
@@ -229,13 +247,16 @@ oasis/
 │   ├── config.ts             # Config loading
 │   ├── logger.ts             # Structured logging
 │   ├── types.ts              # TypeScript types
-│   └── cli/
-│       └── setup-wizard.ts   # CLI commands
-├── tests/
-│   ├── scanner.test.ts       # 14 tests
-│   ├── classifier.test.ts    # 11 tests
-│   ├── patterns.test.ts      # 12 tests
-│   └── integration.test.ts   # 7 tests
+│   ├── cli/
+│   │   └── setup-wizard.ts   # Plugin CLI commands
+│   └── bridge/
+│       ├── index.ts          # Bridge entry point
+│       ├── bolt-app.ts       # Bolt app (Socket Mode + button handlers)
+│       ├── config-loader.ts  # Auto-load tokens from OpenClaw config
+│       ├── gateway-client.ts # Gateway WebSocket client
+│       ├── approval-parser.ts # Parse approval messages
+│       └── blocks.ts         # Block Kit button builder
+├── tests/                    # 79 tests across 7 suites
 ├── openclaw.plugin.json      # Plugin manifest
 ├── package.json
 └── tsconfig.json

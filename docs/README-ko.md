@@ -84,10 +84,36 @@ Agent가 tool 호출 요청
 
 ## 설치
 
+### 1. 플러그인 (위험도 분석 엔진)
+
 ```bash
 openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
+
+### 2. Slack Bridge (승인 버튼)
+
+```bash
+npx @petercha90/oasis bridge
+```
+
+Bridge는 `~/.openclaw/openclaw.json`과 `~/.openclaw/.env`에서 모든 Slack 봇/앱 토큰을 자동으로 읽습니다. 수동 토큰 설정 불필요.
+
+```
+🏝️  OASIS Slack Bridge
+════════════════════════════════════════
+
+  Gateway: ws://127.0.0.1:18789
+
+  ✅ ceo-bot: connected
+  ✅ cpo-bot: connected
+  ✅ cto-bot: connected
+
+🏝️  Bridge running — 3 bot(s) connected
+   Press Ctrl+C to stop
+```
+
+> **왜 두 단계인가?** 플러그인은 OpenClaw Gateway 내부에서 위험도 분석을 수행하지만, Gateway는 Slack Block Kit 버튼을 직접 렌더링할 수 없습니다. Bridge는 Socket Mode로 버튼 UI를 추가하는 경량 사이드카입니다.
 
 ### 권장 설정
 
@@ -110,20 +136,11 @@ openclaw gateway restart
       "enabled": true,
       "mode": "session"
     }
-  },
-  "channels": {
-    "slack": {
-      "capabilities": {
-        "interactiveReplies": true
-      }
-    }
   }
 }
 ```
 
-> **중요:**
-> - `interactiveReplies: true`를 설정하면 텍스트 명령어 대신 Slack Block Kit 버튼(Allow / Deny)이 렌더링됩니다.
-> - `mode: "session"`은 승인 요청이 채널이 아닌 대화 스레드에 표시되도록 합니다.
+> `mode: "session"`은 승인 요청이 채널이 아닌 대화 스레드에 표시되도록 합니다.
 
 ---
 
@@ -220,6 +237,8 @@ openclaw gateway restart
 
 ```
 oasis/
+├── bin/
+│   └── oasis.js              # CLI 진입점 (npx @petercha90/oasis bridge)
 ├── src/
 │   ├── index.ts              # 플러그인 진입점 (definePluginEntry)
 │   ├── scanner.ts            # 위험도 스코어링 엔진
@@ -228,13 +247,16 @@ oasis/
 │   ├── config.ts             # 설정 로딩
 │   ├── logger.ts             # 구조화 로깅
 │   ├── types.ts              # TypeScript 타입
-│   └── cli/
-│       └── setup-wizard.ts   # CLI 명령어
-├── tests/
-│   ├── scanner.test.ts       # 14개 테스트
-│   ├── classifier.test.ts    # 11개 테스트
-│   ├── patterns.test.ts      # 12개 테스트
-│   └── integration.test.ts   # 7개 테스트
+│   ├── cli/
+│   │   └── setup-wizard.ts   # 플러그인 CLI 명령어
+│   └── bridge/
+│       ├── index.ts          # Bridge 진입점
+│       ├── bolt-app.ts       # Bolt 앱 (Socket Mode + 버튼 핸들러)
+│       ├── config-loader.ts  # OpenClaw 설정에서 토큰 자동 로드
+│       ├── gateway-client.ts # Gateway WebSocket 클라이언트
+│       ├── approval-parser.ts # 승인 메시지 파서
+│       └── blocks.ts         # Block Kit 버튼 빌더
+├── tests/                    # 79개 테스트 (7개 스위트)
 ├── openclaw.plugin.json      # 플러그인 매니페스트
 ├── package.json
 └── tsconfig.json
