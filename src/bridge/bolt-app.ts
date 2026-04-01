@@ -1,6 +1,7 @@
 import { App, LogLevel } from "@slack/bolt";
 import { parseApprovalMessage } from "./approval-parser.js";
 import { buildApprovalBlocks, buildResolvedBlocks } from "./blocks.js";
+import { resolveApprovalOneShot } from "./gateway-client.js";
 
 interface BoltAppParams {
   accountId: string;
@@ -8,6 +9,8 @@ interface BoltAppParams {
   appToken: string;
   gatewayPort: number;
   gatewayAuthToken?: string;
+  /** Shared across all bot instances — prevents duplicate button posts */
+  processedMessages: Set<string>;
 }
 
 export function createBoltApp(params: BoltAppParams) {
@@ -18,11 +21,7 @@ export function createBoltApp(params: BoltAppParams) {
     logLevel: LogLevel.WARN,
   });
 
-  const processedMessages = new Set<string>();
-
-  // Watch for messages from OTHER bots that contain approval patterns.
-  // Bot A can see Bot B's messages. Each bridge instance watches for
-  // approval messages NOT from itself.
+  // Watch for approval messages from OTHER bots
   app.event("message", async ({ event, client }) => {
     const msg = event as any;
     const text: string = msg.text ?? "";
@@ -30,14 +29,17 @@ export function createBoltApp(params: BoltAppParams) {
     const channel: string | undefined = msg.channel;
     const threadTs: string | undefined = msg.thread_ts;
 
-    if (!ts || !channel || processedMessages.has(ts)) return;
+    if (!ts || !channel) return;
+
+    // Shared set — if ANY bot already handled this message, skip
+    if (params.processedMessages.has(ts)) return;
 
     const parsed = parseApprovalMessage(text);
     if (!parsed) return;
 
-    processedMessages.add(ts);
+    // Claim this message — other bots will see the Set and skip
+    params.processedMessages.add(ts);
 
-    // Post a NEW message with buttons in the same thread (or channel)
     try {
       await client.chat.postMessage({
         channel,
@@ -51,25 +53,25 @@ export function createBoltApp(params: BoltAppParams) {
         }) as any,
       });
       console.log(
-        `[OASIS Bridge] ${params.accountId}: Posted buttons for ${parsed.approvalId.slice(0, 12)}`
+        `[OASIS Bridge] ${params.accountId}: Buttons posted for ${parsed.approvalId.slice(0, 12)}`
       );
     } catch (err) {
       console.error(
-        `[OASIS Bridge] ${params.accountId}: Failed to post buttons: ${err}`
+        `[OASIS Bridge] ${params.accountId}: Failed: ${err}`
       );
-      processedMessages.delete(ts);
+      params.processedMessages.delete(ts);
     }
 
-    // Prune old entries
-    if (processedMessages.size > 1000) {
-      const entries = [...processedMessages];
+    // Prune
+    if (params.processedMessages.size > 1000) {
+      const entries = [...params.processedMessages];
       for (let i = 0; i < entries.length - 500; i++) {
-        processedMessages.delete(entries[i]);
+        params.processedMessages.delete(entries[i]);
       }
     }
   });
 
-  // Handle Allow button click
+  // Handle Allow button
   app.action("oasis_approve", async ({ ack, body, client }) => {
     await ack();
     const action = (body as any).actions?.[0];
@@ -77,33 +79,23 @@ export function createBoltApp(params: BoltAppParams) {
 
     const { id, decision } = JSON.parse(action.value);
     try {
-      // Post /approve command as a message in the channel
-      // OpenClaw processes commands from chat messages
-      const channel = (body as any).channel?.id;
-      if (channel) {
-        await client.chat.postMessage({
-          channel,
-          thread_ts: (body as any).message?.thread_ts,
-          text: `/approve ${id} ${decision}`,
-        });
-      }
-
+      await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
+        id,
+        decision,
+      });
       await client.chat.update({
-        channel,
+        channel: (body as any).channel.id,
         ts: (body as any).message.ts,
         text: `✅ Approved`,
-        blocks: buildResolvedBlocks({
-          decision,
-          resolvedBy: body.user.id,
-        }) as any,
+        blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
       });
-      console.log(`[OASIS Bridge] ${params.accountId}: Approved ${id.slice(0, 12)}`);
+      console.log(`[OASIS Bridge] Approved ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(`[OASIS Bridge] ${params.accountId}: Approval failed: ${err}`);
+      console.error(`[OASIS Bridge] Approval failed: ${err}`);
     }
   });
 
-  // Handle Deny button click
+  // Handle Deny button
   app.action("oasis_deny", async ({ ack, body, client }) => {
     await ack();
     const action = (body as any).actions?.[0];
@@ -111,27 +103,19 @@ export function createBoltApp(params: BoltAppParams) {
 
     const { id, decision } = JSON.parse(action.value);
     try {
-      const channel = (body as any).channel?.id;
-      if (channel) {
-        await client.chat.postMessage({
-          channel,
-          thread_ts: (body as any).message?.thread_ts,
-          text: `/approve ${id} ${decision}`,
-        });
-      }
-
+      await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
+        id,
+        decision,
+      });
       await client.chat.update({
-        channel,
+        channel: (body as any).channel.id,
         ts: (body as any).message.ts,
         text: `❌ Denied`,
-        blocks: buildResolvedBlocks({
-          decision,
-          resolvedBy: body.user.id,
-        }) as any,
+        blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
       });
-      console.log(`[OASIS Bridge] ${params.accountId}: Denied ${id.slice(0, 12)}`);
+      console.log(`[OASIS Bridge] Denied ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(`[OASIS Bridge] ${params.accountId}: Denial failed: ${err}`);
+      console.error(`[OASIS Bridge] Denial failed: ${err}`);
     }
   });
 

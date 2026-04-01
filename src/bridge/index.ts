@@ -20,6 +20,9 @@ export async function startBridge() {
     process.exit(1);
   }
 
+  // Shared across all bot instances — first bot to detect wins
+  const processedMessages = new Set<string>();
+
   let connectedCount = 0;
 
   for (const account of config.accounts) {
@@ -39,6 +42,7 @@ export async function startBridge() {
       appToken,
       gatewayPort: config.gatewayPort,
       gatewayAuthToken: config.gatewayAuthToken,
+      processedMessages,
     });
 
     try {
