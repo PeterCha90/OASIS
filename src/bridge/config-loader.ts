@@ -12,6 +12,8 @@ export interface BridgeConfig {
   accounts: SlackAccountConfig[];
   gatewayPort: number;
   gatewayAuthToken?: string;
+  deviceToken?: string;
+  deviceId?: string;
   tokens: Record<string, string>;
 }
 
@@ -83,5 +85,17 @@ export function loadBridgeConfig(): BridgeConfig {
     gatewayAuthToken = tokens[gatewayAuth.token.id];
   }
 
-  return { accounts, gatewayPort, gatewayAuthToken, tokens };
+  // Read device token (used for authenticated gateway calls)
+  let deviceToken: string | undefined;
+  let deviceId: string | undefined;
+  const deviceAuthPath = join(openclawDir, "identity", "device-auth.json");
+  if (existsSync(deviceAuthPath)) {
+    try {
+      const deviceAuth = JSON.parse(readFileSync(deviceAuthPath, "utf-8"));
+      deviceToken = deviceAuth.tokens?.operator?.token;
+      deviceId = deviceAuth.deviceId;
+    } catch {}
+  }
+
+  return { accounts, gatewayPort, gatewayAuthToken, deviceToken, deviceId, tokens };
 }
