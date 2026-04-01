@@ -4,7 +4,32 @@ import {
   BLOCKED_PATTERNS,
   RISK_PATTERNS,
   DEFAULT_SAFE_DOMAINS,
+  SECRET_OUTPUT_PATTERNS,
 } from "./patterns.js";
+
+export interface SecretScanResult {
+  detected: boolean;
+  reasons: string[];
+}
+
+/**
+ * Scan text content for secret/credential patterns.
+ * Used to prevent accidental secret leakage in outbound messages.
+ */
+export function scanTextForSecrets(text: string): SecretScanResult {
+  const reasons: string[] = [];
+
+  for (const pattern of SECRET_OUTPUT_PATTERNS) {
+    if (pattern.regex.test(text)) {
+      reasons.push(pattern.description);
+    }
+  }
+
+  return {
+    detected: reasons.length > 0,
+    reasons,
+  };
+}
 
 const BASE_RISK: Record<string, number> = {
   file_delete: 0.2,
