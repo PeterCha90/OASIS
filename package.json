@@ -5,6 +5,9 @@
   "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "oasis": "./bin/oasis.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,7 +16,8 @@
   },
   "files": [
     "dist",
-    "openclaw.plugin.json"
+    "openclaw.plugin.json",
+    "bin"
   ],
   "author": "Peter Cha (https://github.com/PeterCha90)",
   "license": "MIT",
@@ -47,10 +51,17 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@slack/bolt": "^4.1.0",
+    "@slack/web-api": "^7.8.0",
+    "ws": "^8.18.0",
+    "dotenv": "^16.4.0"
+  },
   "peerDependencies": {
     "openclaw": ">=2026.3.28"
   },
   "devDependencies": {
+    "@types/ws": "^8.5.0",
     "openclaw": "^2026.3.31",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
