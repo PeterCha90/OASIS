@@ -32,11 +32,33 @@ export async function handleBeforeToolCall(
 
   // 1. Tool classification
   const classification = classifyTool(toolName, config);
+
+  // 2. Even for read tools, scan params for sensitive file paths
   if (classification === "read") {
+    const scanResult = scanForRisks(toolName, params, config);
+    if (scanResult.score > 0) {
+      return {
+        requireApproval: {
+          title: "🏝️ OASIS: Sensitive File Access",
+          description: [
+            `**Tool:** \`${toolName}\``,
+            `**Detected:** ${scanResult.reasons.join(", ")}`,
+            ``,
+            `**Parameters:**`,
+            `\`\`\``,
+            `${JSON.stringify(params, null, 2).slice(0, 500)}`,
+            `\`\`\``,
+          ].join("\n"),
+          severity: "warning",
+          timeoutMs: config.approvalTimeoutMs,
+          timeoutBehavior: "deny",
+        },
+      };
+    }
     return {};
   }
 
-  // 2. Risk analysis
+  // 3. Risk analysis for execute tools
   const scanResult = scanForRisks(toolName, params, config);
 
   // 3. Decision

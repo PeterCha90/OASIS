@@ -4,9 +4,42 @@ import { handleBeforeToolCall, handleBeforeMessageWrite } from "../src/index.js"
 import { defaultConfig } from "../src/config.js";
 
 describe("Plugin Integration — handleBeforeToolCall", () => {
-  test("read tool should return empty (pass through)", async () => {
+  test("read tool on safe file should pass through", async () => {
     const result = await handleBeforeToolCall(
-      { toolName: "read", params: { path: "/tmp/test" } },
+      { toolName: "read", params: { path: "/tmp/test.txt" } },
+      defaultConfig
+    );
+    expect(result).toEqual({});
+  });
+
+  test("read tool on .env should require approval", async () => {
+    const result = await handleBeforeToolCall(
+      { toolName: "read", params: { path: "~/.openclaw/.env" } },
+      defaultConfig
+    );
+    expect(result.requireApproval).toBeDefined();
+    expect(result.requireApproval!.title).toContain("Sensitive");
+  });
+
+  test("read tool on .ssh should require approval", async () => {
+    const result = await handleBeforeToolCall(
+      { toolName: "read", params: { path: "~/.ssh/id_rsa" } },
+      defaultConfig
+    );
+    expect(result.requireApproval).toBeDefined();
+  });
+
+  test("read tool on .aws/credentials should require approval", async () => {
+    const result = await handleBeforeToolCall(
+      { toolName: "read", params: { path: "~/.aws/credentials" } },
+      defaultConfig
+    );
+    expect(result.requireApproval).toBeDefined();
+  });
+
+  test("glob tool should still pass freely", async () => {
+    const result = await handleBeforeToolCall(
+      { toolName: "glob", params: { pattern: "**/*.ts" } },
       defaultConfig
     );
     expect(result).toEqual({});
