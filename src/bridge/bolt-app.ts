@@ -2,7 +2,7 @@ import { App, LogLevel } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
 import { parseApprovalMessage } from "./approval-parser.js";
 import { buildApprovalBlocks, buildResolvedBlocks } from "./blocks.js";
-import { resolveApprovalOneShot } from "./gateway-client.js";
+// Gateway WS removed — use bot message for /approve command instead
 
 interface BoltAppParams {
   accountId: string;
@@ -105,20 +105,26 @@ export function createBoltApp(params: BoltAppParams) {
 
   // Handle Allow button
   app.action("oasis_approve", async ({ ack, body, client }) => {
+    console.log(`[OASIS Bridge] ${params.accountId}: Allow clicked`);
     await ack();
     const action = (body as any).actions?.[0];
     if (!action?.value) return;
 
     const { id, decision } = JSON.parse(action.value);
+    const channel = (body as any).channel?.id;
+    const threadTs = (body as any).message?.thread_ts;
+
     try {
-      await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
-        id,
-        decision,
+      // Bot posts /approve as a regular message — Slack won't intercept bot messages as slash commands
+      await client.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: `/approve ${id} ${decision}`,
       });
       await client.chat.update({
-        channel: (body as any).channel.id,
+        channel,
         ts: (body as any).message.ts,
-        text: `✅ Approved`,
+        text: `✅ Allowed`,
         blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
       });
       console.log(`[OASIS Bridge] Approved ${id.slice(0, 12)}`);
@@ -129,18 +135,23 @@ export function createBoltApp(params: BoltAppParams) {
 
   // Handle Deny button
   app.action("oasis_deny", async ({ ack, body, client }) => {
+    console.log(`[OASIS Bridge] ${params.accountId}: Deny clicked`);
     await ack();
     const action = (body as any).actions?.[0];
     if (!action?.value) return;
 
     const { id, decision } = JSON.parse(action.value);
+    const channel = (body as any).channel?.id;
+    const threadTs = (body as any).message?.thread_ts;
+
     try {
-      await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
-        id,
-        decision,
+      await client.chat.postMessage({
+        channel,
+        thread_ts: threadTs,
+        text: `/approve ${id} ${decision}`,
       });
       await client.chat.update({
-        channel: (body as any).channel.id,
+        channel,
         ts: (body as any).message.ts,
         text: `❌ Denied`,
         blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
@@ -149,6 +160,17 @@ export function createBoltApp(params: BoltAppParams) {
     } catch (err) {
       console.error(`[OASIS Bridge] Deny failed: ${err}`);
     }
+  });
+
+  // Catch any unhandled actions
+  app.action(/.*/, async ({ ack, body }) => {
+    console.log(`[OASIS Bridge] ${params.accountId}: Unhandled action: ${(body as any).actions?.[0]?.action_id}`);
+    await ack();
+  });
+
+  // Log any errors
+  app.error(async (error) => {
+    console.error(`[OASIS Bridge] ${params.accountId}: Bolt error:`, error);
   });
 
   return { app, accountId: params.accountId };
