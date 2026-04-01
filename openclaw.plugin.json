@@ -1,0 +1,72 @@
+{
+  "id": "oasis",
+  "name": "OASIS",
+  "description": "OpenClaw Antidote for Suspicious Injection Signals — deterministic tool security guard with Slack/Discord/Telegram native approval buttons",
+  "version": "1.0.0",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "threshold": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 0.9,
+        "default": 0.3,
+        "description": "Risk score threshold. Scores above this value require user approval. Scores at 1.0 are always blocked regardless."
+      },
+      "approvalTimeoutMs": {
+        "type": "number",
+        "minimum": 10000,
+        "maximum": 600000,
+        "default": 120000,
+        "description": "Approval timeout in milliseconds (default: 2 minutes)"
+      },
+      "readTools": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional tool names classified as read-only (free pass)"
+      },
+      "executeTools": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional tool names classified as execute (risk analysis)"
+      },
+      "safeDomains": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional safe domains for URL access (no risk score penalty)"
+      },
+      "customPatterns": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "regex": { "type": "string" },
+            "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "description": { "type": "string" }
+          },
+          "required": ["id", "regex", "score"]
+        },
+        "description": "Custom detection patterns"
+      },
+      "logLevel": {
+        "type": "string",
+        "enum": ["debug", "info", "warn", "error"],
+        "default": "info"
+      }
+    }
+  },
+  "uiHints": {
+    "threshold": {
+      "label": "Risk Threshold",
+      "help": "Tool calls with risk score above this are sent for approval. 0.0=most strict, 0.9=most lenient. Score 1.0 always blocked.",
+      "placeholder": "0.3"
+    },
+    "approvalTimeoutMs": {
+      "label": "Approval Timeout (ms)",
+      "help": "How long to wait for user approval before auto-denying",
+      "placeholder": "120000"
+    }
+  }
+}
