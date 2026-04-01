@@ -20,8 +20,14 @@ export async function startBridge() {
     process.exit(1);
   }
 
-  // Shared across all bot instances — first bot to detect wins
   const processedMessages = new Set<string>();
+
+  // Collect all bot tokens so any bot can update any other bot's messages
+  const allBotTokens = new Map<string, string>();
+  for (const account of config.accounts) {
+    const botToken = config.tokens[account.botTokenEnvKey];
+    if (botToken) allBotTokens.set(account.id, botToken);
+  }
 
   let connectedCount = 0;
 
@@ -43,6 +49,7 @@ export async function startBridge() {
       gatewayPort: config.gatewayPort,
       gatewayAuthToken: config.gatewayAuthToken,
       processedMessages,
+      allBotTokens,
     });
 
     try {
@@ -63,7 +70,6 @@ export async function startBridge() {
 
   console.log("");
   console.log(`🏝️  Bridge running — ${connectedCount} bot(s)`);
-  console.log("   Watching for approval messages...");
   console.log("   Press Ctrl+C to stop");
   console.log("");
 }

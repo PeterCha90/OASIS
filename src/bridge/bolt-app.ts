@@ -1,4 +1,5 @@
 import { App, LogLevel } from "@slack/bolt";
+import { WebClient } from "@slack/web-api";
 import { parseApprovalMessage } from "./approval-parser.js";
 import { buildApprovalBlocks, buildResolvedBlocks } from "./blocks.js";
 import { resolveApprovalOneShot } from "./gateway-client.js";
@@ -9,8 +10,10 @@ interface BoltAppParams {
   appToken: string;
   gatewayPort: number;
   gatewayAuthToken?: string;
-  /** Shared across all bot instances — prevents duplicate button posts */
+  /** Shared across all bot instances — prevents duplicate handling */
   processedMessages: Set<string>;
+  /** Map of all bot tokens by accountId — for updating other bots' messages */
+  allBotTokens: Map<string, string>;
 }
 
 export function createBoltApp(params: BoltAppParams) {
@@ -22,29 +25,58 @@ export function createBoltApp(params: BoltAppParams) {
   });
 
   // Watch for approval messages from OTHER bots
-  app.event("message", async ({ event, client }) => {
+  app.event("message", async ({ event }) => {
     const msg = event as any;
     const text: string = msg.text ?? "";
     const ts: string | undefined = msg.ts;
     const channel: string | undefined = msg.channel;
-    const threadTs: string | undefined = msg.thread_ts;
 
     if (!ts || !channel) return;
-
-    // Shared set — if ANY bot already handled this message, skip
     if (params.processedMessages.has(ts)) return;
 
     const parsed = parseApprovalMessage(text);
     if (!parsed) return;
 
-    // Claim this message — other bots will see the Set and skip
+    // Claim — other bots skip
     params.processedMessages.add(ts);
 
+    // Figure out which bot posted the approval message
+    // Use that bot's token to update ITS OWN message with buttons
+    const botId = msg.bot_id;
+    let updateClient: WebClient | null = null;
+
+    // Try to find the right bot token by checking each one
+    for (const [, token] of params.allBotTokens) {
+      try {
+        const testClient = new WebClient(token);
+        const authInfo = await testClient.auth.test();
+        if (authInfo.bot_id === botId) {
+          updateClient = testClient;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    if (!updateClient) {
+      // Fallback: use first available token
+      const firstToken = [...params.allBotTokens.values()][0];
+      if (firstToken) updateClient = new WebClient(firstToken);
+    }
+
+    if (!updateClient) {
+      console.error(`[OASIS Bridge] No client found to update message`);
+      params.processedMessages.delete(ts);
+      return;
+    }
+
+    // Update the ORIGINAL message to add Block Kit buttons
     try {
-      await client.chat.postMessage({
+      await updateClient.chat.update({
         channel,
-        thread_ts: threadTs ?? ts,
-        text: `🏝️ OASIS: Approve or Deny?`,
+        ts,
+        text,
         blocks: buildApprovalBlocks({
           approvalId: parsed.approvalId,
           title: parsed.title,
@@ -53,12 +85,10 @@ export function createBoltApp(params: BoltAppParams) {
         }) as any,
       });
       console.log(
-        `[OASIS Bridge] ${params.accountId}: Buttons posted for ${parsed.approvalId.slice(0, 12)}`
+        `[OASIS Bridge] Buttons added to ${parsed.approvalId.slice(0, 12)}`
       );
     } catch (err) {
-      console.error(
-        `[OASIS Bridge] ${params.accountId}: Failed: ${err}`
-      );
+      console.error(`[OASIS Bridge] Failed to update message: ${err}`);
       params.processedMessages.delete(ts);
     }
 
@@ -91,7 +121,7 @@ export function createBoltApp(params: BoltAppParams) {
       });
       console.log(`[OASIS Bridge] Approved ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(`[OASIS Bridge] Approval failed: ${err}`);
+      console.error(`[OASIS Bridge] Approve failed: ${err}`);
     }
   });
 
@@ -115,7 +145,7 @@ export function createBoltApp(params: BoltAppParams) {
       });
       console.log(`[OASIS Bridge] Denied ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(`[OASIS Bridge] Denial failed: ${err}`);
+      console.error(`[OASIS Bridge] Deny failed: ${err}`);
     }
   });
 

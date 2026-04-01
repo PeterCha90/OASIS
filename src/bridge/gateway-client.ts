@@ -54,6 +54,8 @@ export async function resolveApprovalOneShot(
         // Skip challenge events
         if (msg.type === "event") return;
 
+        console.log(`[OASIS Bridge] GW resolve msg: ${JSON.stringify(msg).slice(0, 200)}`);
+
         // Handle connect response
         if (msg.type === "res" && msg.id === "1" && !handshakeDone) {
           if (!msg.ok) {
