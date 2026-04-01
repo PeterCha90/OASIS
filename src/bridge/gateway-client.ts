@@ -2,7 +2,7 @@ import WebSocket from "ws";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { createSign } from "crypto";
+import { sign, createPublicKey } from "crypto";
 
 interface ResolveParams {
   id: string;
@@ -12,6 +12,7 @@ interface ResolveParams {
 interface DeviceIdentity {
   deviceId: string;
   privateKeyPem: string;
+  publicKeyPem: string;
 }
 
 function loadDeviceIdentity(): DeviceIdentity | null {
@@ -19,16 +20,23 @@ function loadDeviceIdentity(): DeviceIdentity | null {
   if (!existsSync(identityPath)) return null;
   try {
     const data = JSON.parse(readFileSync(identityPath, "utf-8"));
-    return { deviceId: data.deviceId, privateKeyPem: data.privateKeyPem };
+    return { deviceId: data.deviceId, privateKeyPem: data.privateKeyPem, publicKeyPem: data.publicKeyPem };
   } catch {
     return null;
   }
 }
 
 function signPayload(privateKeyPem: string, payload: string): string {
-  const sign = createSign("Ed25519");
-  sign.update(payload);
-  return sign.sign(privateKeyPem, "base64url");
+  const signature = sign(null, Buffer.from(payload), privateKeyPem);
+  return signature.toString("base64url");
+}
+
+function publicKeyToBase64Url(publicKeyPem: string): string {
+  const key = createPublicKey(publicKeyPem);
+  const rawKey = key.export({ type: "spki", format: "der" });
+  // Ed25519 SPKI is 44 bytes: 12 byte prefix + 32 byte raw key
+  const raw = rawKey.subarray(12);
+  return raw.toString("base64url");
 }
 
 /**
@@ -118,13 +126,16 @@ export async function resolveApprovalOneShot(
 
             connectParams.device = {
               id: device.deviceId,
-              auth: {
-                version: 3,
-                signedAtMs,
-                signature,
-                token: deviceTokenStr,
-                nonce: challengeNonce,
-              },
+              publicKey: publicKeyToBase64Url(device.publicKeyPem),
+              signature,
+              signedAt: signedAtMs,
+              nonce: challengeNonce,
+            };
+
+            // Device token goes in auth, not device
+            connectParams.auth = {
+              ...connectParams.auth,
+              deviceToken: deviceTokenStr,
             };
           }
 
