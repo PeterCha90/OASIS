@@ -1,6 +1,6 @@
 // tests/integration.test.ts
 import { describe, test, expect } from "vitest";
-import { handleBeforeToolCall } from "../src/index.js";
+import { handleBeforeToolCall, handleMessageSending } from "../src/index.js";
 import { defaultConfig } from "../src/config.js";
 
 describe("Plugin Integration — handleBeforeToolCall", () => {
@@ -77,5 +77,48 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
     expect(desc).toContain("**Tool:**");
     expect(desc).toContain("**Detected:**");
     expect(desc).toContain("```");
+  });
+});
+
+describe("Plugin Integration — handleMessageSending", () => {
+  test("normal message should pass through", () => {
+    const result = handleMessageSending(
+      { content: "Here is the file structure of the project." },
+      defaultConfig
+    );
+    expect(result).toEqual({});
+  });
+
+  test("message containing AWS key should be blocked", () => {
+    const result = handleMessageSending(
+      { content: "The key is AKIAIOSFODNN7EXAMPLE123456" },
+      defaultConfig
+    );
+    expect(result.cancel).toBe(true);
+    expect(result.content).toContain("OASIS");
+  });
+
+  test("message containing Slack token should be blocked", () => {
+    const result = handleMessageSending(
+      { content: "CEO_BOT_TOKEN=xoxb-1064338359768-abcdef" },
+      defaultConfig
+    );
+    expect(result.cancel).toBe(true);
+  });
+
+  test("message containing private key should be blocked", () => {
+    const result = handleMessageSending(
+      { content: "-----BEGIN RSA PRIVATE KEY-----\nMIIE..." },
+      defaultConfig
+    );
+    expect(result.cancel).toBe(true);
+  });
+
+  test("message with password assignment should be blocked", () => {
+    const result = handleMessageSending(
+      { content: "DATABASE_PASSWORD=supersecret123" },
+      defaultConfig
+    );
+    expect(result.cancel).toBe(true);
   });
 });

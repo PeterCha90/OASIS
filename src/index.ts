@@ -1,7 +1,7 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { classifyTool } from "./classifier.js";
-import { scanForRisks } from "./scanner.js";
+import { scanForRisks, scanTextForSecrets } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
 import { registerOasisCli } from "./cli/setup-wizard.js";
@@ -85,6 +85,38 @@ export async function handleBeforeToolCall(
   return {};
 }
 
+interface MessageSendingResult {
+  content?: string;
+  cancel?: boolean;
+}
+
+/**
+ * Scans outgoing messages for secret content.
+ * Blocks messages that contain credentials, tokens, or keys.
+ */
+export function handleMessageSending(
+  event: { content: string },
+  _config: OasisConfig
+): MessageSendingResult {
+  const result = scanTextForSecrets(event.content);
+
+  if (result.detected) {
+    return {
+      cancel: true,
+      content: [
+        `🚨 *OASIS: Message Blocked*`,
+        ``,
+        `This message was blocked because it contains sensitive data:`,
+        `${result.reasons.map((r) => `• ${r}`).join("\n")}`,
+        ``,
+        `_Secrets should never be sent as messages. Use secure channels or environment-specific tools._`,
+      ].join("\n"),
+    };
+  }
+
+  return {};
+}
+
 /**
  * OpenClaw plugin entry point.
  * Registers the before_tool_call hook for deterministic risk scoring.
@@ -117,6 +149,20 @@ export default definePluginEntry({
             `[OASIS] Resolution: ${decision} for ${event.toolName}`
           );
         };
+      }
+
+      return result;
+    }, { priority: 10 });
+
+    // ── Secret Leakage Guard: message_sending ──
+    api.on("message_sending", (event, _ctx) => {
+      const result = handleMessageSending(
+        { content: (event as { content?: string }).content ?? "" },
+        config
+      );
+
+      if (result.cancel) {
+        logger.warn("[OASIS] Message blocked: contains secrets");
       }
 
       return result;
