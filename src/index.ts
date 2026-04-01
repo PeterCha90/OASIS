@@ -1,4 +1,5 @@
-// src/index.ts
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { classifyTool } from "./classifier.js";
 import { scanForRisks } from "./scanner.js";
 import { loadConfig } from "./config.js";
@@ -6,21 +7,17 @@ import { createLogger } from "./logger.js";
 import { registerOasisCli } from "./cli/setup-wizard.js";
 import type { OasisConfig } from "./types.js";
 
-interface ToolCallEvent {
-  toolName: string;
-  params: Record<string, unknown>;
-}
-
+/** Shape returned by handleBeforeToolCall, compatible with PluginHookBeforeToolCallResult */
 interface HookResult {
   block?: boolean;
   blockReason?: string;
   requireApproval?: {
     title: string;
     description: string;
-    severity: string;
-    timeoutMs: number;
-    timeoutBehavior: string;
-    onResolution?: (decision: string) => Promise<void>;
+    severity?: "info" | "warning" | "critical";
+    timeoutMs?: number;
+    timeoutBehavior?: "allow" | "deny";
+    onResolution?: (decision: string) => Promise<void> | void;
   };
 }
 
@@ -28,7 +25,7 @@ interface HookResult {
  * Core hook handler logic — exported for testing.
  */
 export async function handleBeforeToolCall(
-  event: ToolCallEvent,
+  event: { toolName: string; params: Record<string, unknown> },
   config: OasisConfig
 ): Promise<HookResult> {
   const { toolName, params } = event;
@@ -58,6 +55,13 @@ export async function handleBeforeToolCall(
   }
 
   if (scanResult.score > config.threshold) {
+    const severity: "info" | "warning" | "critical" =
+      scanResult.score >= 0.9
+        ? "critical"
+        : scanResult.score >= 0.5
+          ? "warning"
+          : "info";
+
     return {
       requireApproval: {
         title: "🏝️ OASIS Security Review",
@@ -69,7 +73,7 @@ export async function handleBeforeToolCall(
           `Parameters:`,
           `${JSON.stringify(params, null, 2).slice(0, 500)}`,
         ].join("\n"),
-        severity: scanResult.severity,
+        severity,
         timeoutMs: config.approvalTimeoutMs,
         timeoutBehavior: "deny",
       },
@@ -80,61 +84,40 @@ export async function handleBeforeToolCall(
 }
 
 /**
- * Plugin entry — uses definePluginEntry when loaded by OpenClaw.
- * The actual SDK import is dynamic to avoid build-time dependency.
+ * OpenClaw plugin entry point.
+ * Registers the before_tool_call hook for deterministic risk scoring.
  */
-export function createOasisPlugin() {
-  return {
-    id: "oasis",
-    name: "OASIS",
-    description:
-      "OpenClaw Antidote for Suspicious Injection Signals — deterministic tool security guard",
+export default definePluginEntry({
+  id: "oasis",
+  name: "OASIS",
+  description:
+    "OpenClaw Antidote for Suspicious Injection Signals — deterministic tool security guard",
 
-    register(api: {
-      pluginConfig: unknown;
-      logger: { debug: (m: string) => void; info: (m: string) => void; warn: (m: string) => void; error: (m: string) => void };
-      on: (event: string, handler: (...args: unknown[]) => unknown, opts?: Record<string, unknown>) => void;
-      registerCli?: (fn: (program: unknown) => void) => void;
-    }) {
-      const config = loadConfig(api.pluginConfig as Partial<OasisConfig>);
-      const logger = createLogger(config, api.logger);
+  register(api: OpenClawPluginApi) {
+    const config = loadConfig(api.pluginConfig as Partial<OasisConfig>);
+    const logger = createLogger(config, api.logger);
 
-      logger.info(
-        `[OASIS] Loaded with threshold=${config.threshold}`
-      );
+    logger.info(`[OASIS] Loaded with threshold=${config.threshold}`);
 
-      // ── CLI: setup wizard ──
-      registerOasisCli(api, config);
+    // ── CLI: setup wizard ──
+    registerOasisCli(api, config);
 
-      api.on(
-        "before_tool_call",
-        async (event: unknown) => {
-          const result = await handleBeforeToolCall(
-            event as ToolCallEvent,
-            config
+    // ── Core Hook: before_tool_call ──
+    api.on("before_tool_call", async (event, _ctx) => {
+      const result = await handleBeforeToolCall(event, config);
+
+      if (result.block) {
+        logger.warn(`[OASIS] BLOCKED: ${event.toolName}`);
+      } else if (result.requireApproval) {
+        logger.info(`[OASIS] Approval requested: ${event.toolName}`);
+        result.requireApproval.onResolution = async (decision) => {
+          logger.info(
+            `[OASIS] Resolution: ${decision} for ${event.toolName}`
           );
+        };
+      }
 
-          if (result.block) {
-            logger.warn(
-              `[OASIS] BLOCKED: ${(event as ToolCallEvent).toolName}`
-            );
-          } else if (result.requireApproval) {
-            const e = event as ToolCallEvent;
-            logger.info(
-              `[OASIS] Approval requested: ${e.toolName}`
-            );
-            // Attach resolution logger
-            result.requireApproval.onResolution = async (decision: string) => {
-              logger.info(
-                `[OASIS] Resolution: ${decision} for ${e.toolName}`
-              );
-            };
-          }
-
-          return result;
-        },
-        { name: "oasis-guard", priority: 10 }
-      );
-    },
-  };
-}
+      return result;
+    }, { priority: 10 });
+  },
+});

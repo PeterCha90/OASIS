@@ -1,8 +1,20 @@
 {
-  "name": "@petercha90/openclaw-plugin-oasis",
+  "name": "@petercha90/oasis",
   "version": "1.0.0",
   "type": "module",
   "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "openclaw.plugin.json"
+  ],
   "author": "Peter Cha (https://github.com/PeterCha90)",
   "license": "MIT",
   "repository": {
@@ -21,19 +33,25 @@
     "tool-guard"
   ],
   "openclaw": {
-    "extensions": ["./src/index.ts"],
+    "extensions": ["./dist/index.js"],
     "compat": {
       "pluginApi": ">=2026.3.28",
       "minGatewayVersion": "2026.3.28"
     }
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "install-oasis": "bash install.sh"
   },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.28"
+  },
   "devDependencies": {
-    "vitest": "^3.0.0",
-    "typescript": "^5.7.0"
+    "openclaw": "^2026.3.31",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
   }
 }

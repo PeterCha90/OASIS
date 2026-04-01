@@ -3,7 +3,7 @@ import type { OasisConfig } from "./types.js";
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 } as const;
 
 export interface OasisLogger {
-  debug(message: string): void;
+  debug?: (message: string) => void;
   info(message: string): void;
   warn(message: string): void;
   error(message: string): void;
@@ -28,7 +28,7 @@ export function createLogger(
 
   return {
     debug: (msg) => {
-      if (minLevel <= LOG_LEVELS.debug) base.debug(msg);
+      if (minLevel <= LOG_LEVELS.debug) base.debug?.(msg);
     },
     info: (msg) => {
       if (minLevel <= LOG_LEVELS.info) base.info(msg);
