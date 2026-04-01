@@ -65,7 +65,7 @@ export class GatewayClient {
             mode: "backend",
           },
           role: "operator",
-          scopes: ["approvals", "read"],
+          scopes: ["operator.approvals", "operator.read"],
           auth: this.authToken ? { token: this.authToken } : undefined,
         },
       });
@@ -75,11 +75,16 @@ export class GatewayClient {
       try {
         const msg = JSON.parse(data.toString());
 
+        // DEBUG: only log non-streaming events
+        if (msg.type === "event" && msg.event !== "agent" && msg.event !== "tick") {
+          console.log(`[OASIS Bridge] GW event: ${msg.event} ${JSON.stringify(msg.payload ?? {}).slice(0, 300)}`);
+        }
+
         // Handle connect response
         if (msg.type === "res" && !handshakeComplete) {
           if (msg.ok) {
             handshakeComplete = true;
-            console.log(`[OASIS Bridge] Gateway connected`);
+            console.log(`[OASIS Bridge] Gateway connected. Response: ${JSON.stringify(msg.payload ?? msg).slice(0, 500)}`);
           } else {
             console.error(`[OASIS Bridge] Gateway handshake failed: ${msg.error?.message ?? "unknown"}`);
           }
