@@ -28,13 +28,15 @@ export type ApprovalEventHandler = (approval: ApprovalRequest) => void;
 
 export class GatewayClient {
   private port: number;
+  private authToken: string | undefined;
   private ws: WebSocket | null = null;
   private onApproval: ApprovalEventHandler | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private rpcId = 0;
 
-  constructor(port: number) {
+  constructor(port: number, authToken?: string) {
     this.port = port;
+    this.authToken = authToken;
   }
 
   onApprovalRequested(handler: ApprovalEventHandler) {
@@ -56,14 +58,15 @@ export class GatewayClient {
           minProtocol: 3,
           maxProtocol: 3,
           client: {
-            id: "oasis-bridge",
+            id: "gateway-client",
             displayName: "OASIS Bridge",
             version: "1.1.0",
             platform: process.platform,
-            mode: "operator",
+            mode: "backend",
           },
           role: "operator",
           scopes: ["approvals", "read"],
+          auth: this.authToken ? { token: this.authToken } : undefined,
         },
       });
     });

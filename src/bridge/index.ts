@@ -21,7 +21,7 @@ export async function startBridge() {
     process.exit(1);
   }
 
-  const gateway = new GatewayClient(config.gatewayPort);
+  const gateway = new GatewayClient(config.gatewayPort, config.gatewayAuthToken);
 
   // Build a map of accountId → postApprovalButtons function
   const boltApps: Map<

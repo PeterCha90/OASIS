@@ -11,6 +11,7 @@ export interface SlackAccountConfig {
 export interface BridgeConfig {
   accounts: SlackAccountConfig[];
   gatewayPort: number;
+  gatewayAuthToken?: string;
   tokens: Record<string, string>;
 }
 
@@ -75,5 +76,12 @@ export function loadBridgeConfig(): BridgeConfig {
     tokens = loadEnvTokens(readFileSync(envPath, "utf-8"));
   }
 
-  return { accounts, gatewayPort, tokens };
+  // Read gateway auth token
+  const gatewayAuth = (config.gateway as any)?.auth;
+  let gatewayAuthToken: string | undefined;
+  if (gatewayAuth?.mode === "token" && gatewayAuth?.token?.id) {
+    gatewayAuthToken = tokens[gatewayAuth.token.id];
+  }
+
+  return { accounts, gatewayPort, gatewayAuthToken, tokens };
 }
