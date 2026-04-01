@@ -89,33 +89,10 @@ openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### Minimal Config
+### Recommended Config
 
 ```jsonc
 // ~/.openclaw/openclaw.json
-{
-  "plugins": {
-    "entries": {
-      "oasis": {
-        "enabled": true,
-        "config": {
-          "threshold": 0.3
-        }
-      }
-    }
-  },
-  "approvals": {
-    "plugin": {
-      "enabled": true,
-      "mode": "same-chat"
-    }
-  }
-}
-```
-
-### Slack Button UI
-
-```jsonc
 {
   "plugins": {
     "entries": {
@@ -131,12 +108,22 @@ openclaw gateway restart
   "approvals": {
     "plugin": {
       "enabled": true,
-      "mode": "targets",
-      "targets": [{ "channel": "slack", "to": "U12345678" }]
+      "mode": "session"
+    }
+  },
+  "channels": {
+    "slack": {
+      "capabilities": {
+        "interactiveReplies": true
+      }
     }
   }
 }
 ```
+
+> **Important:**
+> - `interactiveReplies: true` enables native Slack Block Kit buttons (Allow / Deny) instead of text commands.
+> - `mode: "session"` ensures approval requests appear in the same conversation thread, not the channel.
 
 ---
 

@@ -89,33 +89,10 @@ openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### 기본 설정
+### 권장 설정
 
 ```jsonc
 // ~/.openclaw/openclaw.json
-{
-  "plugins": {
-    "entries": {
-      "oasis": {
-        "enabled": true,
-        "config": {
-          "threshold": 0.3
-        }
-      }
-    }
-  },
-  "approvals": {
-    "plugin": {
-      "enabled": true,
-      "mode": "same-chat"
-    }
-  }
-}
-```
-
-### Slack 버튼 UI 설정
-
-```jsonc
 {
   "plugins": {
     "entries": {
@@ -131,12 +108,22 @@ openclaw gateway restart
   "approvals": {
     "plugin": {
       "enabled": true,
-      "mode": "targets",
-      "targets": [{ "channel": "slack", "to": "U12345678" }]
+      "mode": "session"
+    }
+  },
+  "channels": {
+    "slack": {
+      "capabilities": {
+        "interactiveReplies": true
+      }
     }
   }
 }
 ```
+
+> **중요:**
+> - `interactiveReplies: true`를 설정하면 텍스트 명령어 대신 Slack Block Kit 버튼(Allow / Deny)이 렌더링됩니다.
+> - `mode: "session"`은 승인 요청이 채널이 아닌 대화 스레드에 표시되도록 합니다.
 
 ---
 
