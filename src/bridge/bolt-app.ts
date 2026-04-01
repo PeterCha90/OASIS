@@ -109,6 +109,9 @@ export function createBoltApp(params: BoltAppParams) {
     }
   });
 
+  // Track bot user IDs to ignore bot-added reactions
+  let botUserId: string | undefined;
+
   // Handle reactions — ✅ = allow, ❌ = deny
   app.event("reaction_added", async ({ event, client }) => {
     const reaction = event as any;
@@ -118,6 +121,17 @@ export function createBoltApp(params: BoltAppParams) {
     const userId = reaction.user;
 
     if (!ts || !channel) return;
+
+    // Resolve own bot user ID once
+    if (!botUserId) {
+      try {
+        const auth = await client.auth.test();
+        botUserId = auth.user_id as string;
+      } catch {}
+    }
+
+    // Ignore reactions from bots (including self)
+    if (userId === botUserId) return;
 
     // Check if this is a reaction on an approval message
     const approvalId = approvalByMessageTs.get(ts);

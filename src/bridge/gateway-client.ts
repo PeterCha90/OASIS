@@ -16,7 +16,11 @@ export async function resolveApprovalOneShot(
   params: ResolveParams
 ): Promise<boolean> {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+      headers: authToken
+        ? { "Authorization": `Bearer ${authToken}`, "X-OpenClaw-Token": authToken }
+        : {},
+    });
     const timeout = setTimeout(() => {
       ws.close();
       reject(new Error("Gateway timeout"));
