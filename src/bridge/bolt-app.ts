@@ -1,7 +1,7 @@
 import { App, LogLevel } from "@slack/bolt";
-import { parseApprovalMessage } from "./approval-parser.js";
 import { buildApprovalBlocks, buildResolvedBlocks } from "./blocks.js";
 import { GatewayClient } from "./gateway-client.js";
+import { WebClient } from "@slack/web-api";
 
 interface BoltAppParams {
   accountId: string;
@@ -10,7 +10,16 @@ interface BoltAppParams {
   gateway: GatewayClient;
 }
 
-export function createBoltApp(params: BoltAppParams): App {
+interface ApprovalInfo {
+  id: string;
+  title: string;
+  description: string;
+  toolName: string;
+  channel: string;
+  threadTs?: string;
+}
+
+export function createBoltApp(params: BoltAppParams) {
   const app = new App({
     token: params.botToken,
     appToken: params.appToken,
@@ -18,59 +27,8 @@ export function createBoltApp(params: BoltAppParams): App {
     logLevel: LogLevel.WARN,
   });
 
-  // Track messages we've already updated to avoid loops
-  const processedMessages = new Set<string>();
-
-  // Watch for ALL messages (including bot messages) for approval patterns.
-  // Use event listener instead of app.message() to catch bot_message subtypes.
-  app.event("message", async ({ event, client }) => {
-    const msg = event as any;
-    const text: string = msg.text ?? "";
-    const ts: string | undefined = msg.ts;
-    const channel: string | undefined = msg.channel;
-
-    // Skip if already processed
-    if (!ts || !channel || processedMessages.has(ts)) return;
-
-    // Only process messages that contain approval patterns
-    const parsed = parseApprovalMessage(text);
-    if (!parsed) return;
-
-    // Mark as processed before async work to prevent duplicate processing
-    processedMessages.add(ts);
-
-    // Update the message with Block Kit buttons
-    try {
-      await client.chat.update({
-        channel,
-        ts,
-        text, // keep original text as fallback
-        blocks: buildApprovalBlocks({
-          approvalId: parsed.approvalId,
-          title: parsed.title,
-          toolName: parsed.toolName,
-          description: parsed.description,
-        }) as any,
-      });
-      console.log(
-        `[OASIS Bridge] ${params.accountId}: Approval buttons added for ${parsed.approvalId.slice(0, 12)}`
-      );
-    } catch (err) {
-      console.error(
-        `[OASIS Bridge] ${params.accountId}: Failed to update message: ${err}`
-      );
-      // Remove from processed so a retry is possible
-      processedMessages.delete(ts);
-    }
-
-    // Clean up old entries (keep last 500)
-    if (processedMessages.size > 1000) {
-      const entries = [...processedMessages];
-      for (let i = 0; i < entries.length - 500; i++) {
-        processedMessages.delete(entries[i]);
-      }
-    }
-  });
+  // Web client for posting messages directly
+  const webClient = new WebClient(params.botToken);
 
   // Handle Allow button click
   app.action("oasis_approve", async ({ ack, body, client }) => {
@@ -93,13 +51,9 @@ export function createBoltApp(params: BoltAppParams): App {
           resolvedBy: body.user.id,
         }) as any,
       });
-      console.log(
-        `[OASIS Bridge] ${params.accountId}: Approved ${id.slice(0, 12)}`
-      );
+      console.log(`[OASIS Bridge] ${params.accountId}: Approved ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(
-        `[OASIS Bridge] ${params.accountId}: Approval failed: ${err}`
-      );
+      console.error(`[OASIS Bridge] ${params.accountId}: Approval failed: ${err}`);
     }
   });
 
@@ -124,15 +78,34 @@ export function createBoltApp(params: BoltAppParams): App {
           resolvedBy: body.user.id,
         }) as any,
       });
-      console.log(
-        `[OASIS Bridge] ${params.accountId}: Denied ${id.slice(0, 12)}`
-      );
+      console.log(`[OASIS Bridge] ${params.accountId}: Denied ${id.slice(0, 12)}`);
     } catch (err) {
-      console.error(
-        `[OASIS Bridge] ${params.accountId}: Denial failed: ${err}`
-      );
+      console.error(`[OASIS Bridge] ${params.accountId}: Denial failed: ${err}`);
     }
   });
 
-  return app;
+  /**
+   * Post approval buttons to a Slack channel/thread.
+   * Called externally when Gateway emits a plugin.approval.requested event.
+   */
+  async function postApprovalButtons(approval: ApprovalInfo): Promise<void> {
+    try {
+      await webClient.chat.postMessage({
+        channel: approval.channel,
+        thread_ts: approval.threadTs,
+        text: `🏝️ OASIS Security Review — ${approval.toolName}`,
+        blocks: buildApprovalBlocks({
+          approvalId: approval.id,
+          title: approval.title,
+          toolName: approval.toolName,
+          description: approval.description,
+        }) as any,
+      });
+      console.log(`[OASIS Bridge] ${params.accountId}: Posted approval buttons for ${approval.id.slice(0, 12)}`);
+    } catch (err) {
+      console.error(`[OASIS Bridge] ${params.accountId}: Failed to post buttons: ${err}`);
+    }
+  }
+
+  return { app, postApprovalButtons, accountId: params.accountId };
 }
