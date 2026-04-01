@@ -1,6 +1,6 @@
 {
   "name": "@petercha90/oasis",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals",
   "main": "dist/index.js",
@@ -33,7 +33,9 @@
     "tool-guard"
   ],
   "openclaw": {
-    "extensions": ["./dist/index.js"],
+    "extensions": [
+      "./dist/index.js"
+    ],
     "compat": {
       "pluginApi": ">=2026.3.28",
       "minGatewayVersion": "2026.3.28"
