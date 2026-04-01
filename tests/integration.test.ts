@@ -100,7 +100,7 @@ describe("Plugin Integration — handleMessageSending", () => {
 
   test("message containing Slack token should be blocked", () => {
     const result = handleMessageSending(
-      { content: "CEO_BOT_TOKEN=xoxb-1064338359768-abcdef" },
+      { content: "CEO_BOT_TOKEN=xoxb-fake-token-for-testing" },
       defaultConfig
     );
     expect(result.cancel).toBe(true);

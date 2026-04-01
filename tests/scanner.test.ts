@@ -151,7 +151,7 @@ describe("Secret Output Detection", () => {
 
   test("should detect Slack tokens", () => {
     const result = scanTextForSecrets(
-      "xoxb-1234567890-1234567890123-abcdefghijklmnopqrstuvwx"
+      "xoxb-fake-token-for-testing"
     );
     expect(result.detected).toBe(true);
   });
