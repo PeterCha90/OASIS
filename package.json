@@ -1,6 +1,6 @@
 {
   "name": "@petercha90/oasis",
-  "version": "1.0.5",
+  "version": "1.1.0",
   "type": "module",
   "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals",
   "main": "dist/index.js",
