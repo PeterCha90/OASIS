@@ -3,6 +3,7 @@ import { classifyTool } from "./classifier.js";
 import { scanForRisks } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
+import { registerOasisCli } from "./cli/setup-wizard.js";
 import type { OasisConfig } from "./types.js";
 
 interface ToolCallEvent {
@@ -57,13 +58,6 @@ export async function handleBeforeToolCall(
   }
 
   if (scanResult.score > config.threshold) {
-    const severity =
-      scanResult.score >= 0.9
-        ? "critical"
-        : scanResult.score >= 0.5
-          ? "warning"
-          : "info";
-
     return {
       requireApproval: {
         title: "🏝️ OASIS Security Review",
@@ -75,7 +69,7 @@ export async function handleBeforeToolCall(
           `Parameters:`,
           `${JSON.stringify(params, null, 2).slice(0, 500)}`,
         ].join("\n"),
-        severity,
+        severity: scanResult.severity,
         timeoutMs: config.approvalTimeoutMs,
         timeoutBehavior: "deny",
       },
@@ -108,6 +102,9 @@ export function createOasisPlugin() {
       logger.info(
         `[OASIS] Loaded with threshold=${config.threshold}`
       );
+
+      // ── CLI: setup wizard ──
+      registerOasisCli(api, config);
 
       api.on(
         "before_tool_call",

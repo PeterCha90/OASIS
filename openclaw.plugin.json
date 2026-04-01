@@ -24,12 +24,22 @@
       "readTools": {
         "type": "array",
         "items": { "type": "string" },
-        "description": "Additional tool names classified as read-only (free pass)"
+        "description": "Override default read-only tool list (replaces built-in list). Use customReadTools to add without replacing."
       },
       "executeTools": {
         "type": "array",
         "items": { "type": "string" },
-        "description": "Additional tool names classified as execute (risk analysis)"
+        "description": "Override default execute tool list (replaces built-in list). Use customExecuteTools to add without replacing."
+      },
+      "customReadTools": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional tool names classified as read-only (appended to defaults)"
+      },
+      "customExecuteTools": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Additional tool names classified as execute (appended to defaults)"
       },
       "safeDomains": {
         "type": "array",

@@ -3,7 +3,7 @@ import { scanForRisks } from "../scanner.js";
 import type { OasisConfig } from "../types.js";
 
 interface CliApi {
-  registerCli?: (fn: (program: CliProgram) => void) => void;
+  registerCli?: (fn: (program: unknown) => void) => void;
 }
 
 interface CliProgram {
@@ -20,7 +20,8 @@ interface CliCommand {
 export function registerOasisCli(api: CliApi, config: OasisConfig): void {
   if (!api.registerCli) return;
 
-  api.registerCli((program) => {
+  api.registerCli((prog) => {
+    const program = prog as CliProgram;
     const oasis = program.command("oasis").description("OASIS security plugin");
 
     oasis
