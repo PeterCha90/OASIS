@@ -1,18 +1,9 @@
 {
-  "name": "@petercha90/oasis",
-  "version": "0.2.0",
-  "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals. Prompt injection defense ruleset for OpenClaw agents.",
-  "scripts": {
-    "install-oasis": "bash install.sh"
-  },
-  "keywords": [
-    "openclaw",
-    "security",
-    "prompt-injection",
-    "defense",
-    "oasis"
-  ],
-  "author": "peter",
+  "name": "@petercha90/openclaw-plugin-oasis",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "OASIS — OpenClaw Antidote for Suspicious Injection Signals",
+  "author": "Peter Cha (https://github.com/PeterCha90)",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -21,5 +12,28 @@
   "homepage": "https://github.com/PeterCha90/oasis#readme",
   "bugs": {
     "url": "https://github.com/PeterCha90/oasis/issues"
+  },
+  "keywords": [
+    "openclaw",
+    "plugin",
+    "security",
+    "prompt-injection",
+    "tool-guard"
+  ],
+  "openclaw": {
+    "extensions": ["./src/index.ts"],
+    "compat": {
+      "pluginApi": ">=2026.3.28",
+      "minGatewayVersion": "2026.3.28"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "install-oasis": "bash install.sh"
+  },
+  "devDependencies": {
+    "vitest": "^3.0.0",
+    "typescript": "^5.7.0"
   }
 }
