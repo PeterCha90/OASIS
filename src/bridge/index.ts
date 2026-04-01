@@ -21,6 +21,7 @@ export async function startBridge() {
   }
 
   const processedMessages = new Set<string>();
+  const resolvedApprovals = new Set<string>();
 
   // Collect all bot tokens so any bot can update any other bot's messages
   const allBotTokens = new Map<string, string>();
@@ -49,6 +50,7 @@ export async function startBridge() {
       gatewayPort: config.gatewayPort,
       gatewayAuthToken: config.gatewayAuthToken,
       processedMessages,
+      resolvedApprovals,
       allBotTokens,
     });
 

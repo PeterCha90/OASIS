@@ -1,8 +1,7 @@
 import { App, LogLevel } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
 import { parseApprovalMessage } from "./approval-parser.js";
-import { buildApprovalBlocks, buildResolvedBlocks } from "./blocks.js";
-// Gateway WS removed — use bot message for /approve command instead
+import { resolveApprovalOneShot } from "./gateway-client.js";
 
 interface BoltAppParams {
   accountId: string;
@@ -10,11 +9,16 @@ interface BoltAppParams {
   appToken: string;
   gatewayPort: number;
   gatewayAuthToken?: string;
-  /** Shared across all bot instances — prevents duplicate handling */
+  /** Shared across all bot instances */
   processedMessages: Set<string>;
-  /** Map of all bot tokens by accountId — for updating other bots' messages */
+  /** Shared — tracks approval IDs being resolved to prevent duplicates */
+  resolvedApprovals: Set<string>;
+  /** Map of all bot tokens by accountId */
   allBotTokens: Map<string, string>;
 }
+
+// Map message ts → approval ID for reaction lookup
+const approvalByMessageTs = new Map<string, string>();
 
 export function createBoltApp(params: BoltAppParams) {
   const app = new App({
@@ -24,7 +28,8 @@ export function createBoltApp(params: BoltAppParams) {
     logLevel: LogLevel.WARN,
   });
 
-  // Watch for approval messages from OTHER bots
+  // Watch for approval messages from OTHER bots.
+  // When detected: update message with instructions + add ✅ ❌ reactions.
   app.event("message", async ({ event }) => {
     const msg = event as any;
     const text: string = msg.text ?? "";
@@ -37,15 +42,15 @@ export function createBoltApp(params: BoltAppParams) {
     const parsed = parseApprovalMessage(text);
     if (!parsed) return;
 
-    // Claim — other bots skip
     params.processedMessages.add(ts);
 
-    // Figure out which bot posted the approval message
-    // Use that bot's token to update ITS OWN message with buttons
+    // Store mapping for reaction lookup
+    approvalByMessageTs.set(ts, parsed.approvalId);
+
+    // Find the bot that posted the message to update it
     const botId = msg.bot_id;
     let updateClient: WebClient | null = null;
 
-    // Try to find the right bot token by checking each one
     for (const [, token] of params.allBotTokens) {
       try {
         const testClient = new WebClient(token);
@@ -60,35 +65,36 @@ export function createBoltApp(params: BoltAppParams) {
     }
 
     if (!updateClient) {
-      // Fallback: use first available token
       const firstToken = [...params.allBotTokens.values()][0];
       if (firstToken) updateClient = new WebClient(firstToken);
     }
 
     if (!updateClient) {
-      console.error(`[OASIS Bridge] No client found to update message`);
       params.processedMessages.delete(ts);
       return;
     }
 
-    // Update the ORIGINAL message to add Block Kit buttons
     try {
+      // Update message with clean format + reaction instructions
       await updateClient.chat.update({
         channel,
         ts,
-        text: `🏝️ ${parsed.title}`,
-        blocks: buildApprovalBlocks({
-          approvalId: parsed.approvalId,
-          title: parsed.title,
-          toolName: parsed.toolName,
-          riskScore: parsed.riskScore,
-          detected: parsed.detected,
-          parameters: parsed.parameters,
-        }) as any,
+        text: [
+          `🏝️ *${parsed.title}*`,
+          ``,
+          `*Tool:* \`${parsed.toolName}\`  •  *Risk Score:* \`${parsed.riskScore}\` / 1.0`,
+          `*Detected:* ${parsed.detected}`,
+          parsed.parameters ? `\n*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 500)}\`\`\`` : "",
+          ``,
+          `React ✅ to *Allow* or ❌ to *Deny*`,
+        ].filter(Boolean).join("\n"),
       });
-      console.log(
-        `[OASIS Bridge] Buttons added to ${parsed.approvalId.slice(0, 12)}`
-      );
+
+      // Add reaction options to the message
+      await updateClient.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
+      await updateClient.reactions.add({ channel, timestamp: ts, name: "x" });
+
+      console.log(`[OASIS Bridge] Approval ready: ${parsed.approvalId.slice(0, 12)} — react ✅ or ❌`);
     } catch (err) {
       console.error(`[OASIS Bridge] Failed to update message: ${err}`);
       params.processedMessages.delete(ts);
@@ -103,74 +109,77 @@ export function createBoltApp(params: BoltAppParams) {
     }
   });
 
-  // Handle Allow button
-  app.action("oasis_approve", async ({ ack, body, client }) => {
-    console.log(`[OASIS Bridge] ${params.accountId}: Allow clicked`);
-    await ack();
-    const action = (body as any).actions?.[0];
-    if (!action?.value) return;
+  // Handle reactions — ✅ = allow, ❌ = deny
+  app.event("reaction_added", async ({ event, client }) => {
+    const reaction = event as any;
+    const ts = reaction.item?.ts;
+    const channel = reaction.item?.channel;
+    const reactionName = reaction.reaction;
+    const userId = reaction.user;
 
-    const { id, decision } = JSON.parse(action.value);
-    const channel = (body as any).channel?.id;
-    const threadTs = (body as any).message?.thread_ts;
+    if (!ts || !channel) return;
+
+    // Check if this is a reaction on an approval message
+    const approvalId = approvalByMessageTs.get(ts);
+    if (!approvalId) return;
+
+    // Only process ✅ or ❌
+    let decision: "allow-once" | "deny";
+    if (reactionName === "white_check_mark") {
+      decision = "allow-once";
+    } else if (reactionName === "x") {
+      decision = "deny";
+    } else {
+      return;
+    }
+
+    // Prevent duplicate resolution
+    if (params.resolvedApprovals.has(approvalId)) return;
+    params.resolvedApprovals.add(approvalId);
+
+    const label = decision === "allow-once" ? "Allowed" : "Denied";
+    const emoji = decision === "allow-once" ? "✅" : "❌";
+
+    console.log(`[OASIS Bridge] ${params.accountId}: ${label} by user ${userId}`);
 
     try {
-      // Bot posts /approve as a regular message — Slack won't intercept bot messages as slash commands
-      await client.chat.postMessage({
-        channel,
-        thread_ts: threadTs,
-        text: `/approve ${id} ${decision}`,
+      await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
+        id: approvalId,
+        decision,
       });
-      await client.chat.update({
-        channel,
-        ts: (body as any).message.ts,
-        text: `✅ Allowed`,
-        blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
-      });
-      console.log(`[OASIS Bridge] Approved ${id.slice(0, 12)}`);
+      console.log(`[OASIS Bridge] Gateway resolved: ${label}`);
+
+      // Find the right bot to update the message
+      const botId = (await client.auth.test()).bot_id;
+      let updateClient: WebClient = client;
+
+      // Try each bot token to find the message owner
+      for (const [, token] of params.allBotTokens) {
+        try {
+          const testClient = new WebClient(token);
+          await testClient.chat.update({
+            channel,
+            ts,
+            text: `${emoji} *OASIS: ${label}* by <@${userId}>`,
+          });
+          updateClient = testClient;
+          console.log(`[OASIS Bridge] Message updated: ${label}`);
+          break;
+        } catch {
+          continue;
+        }
+      }
     } catch (err) {
-      console.error(`[OASIS Bridge] Approve failed: ${err}`);
+      console.error(`[OASIS Bridge] Resolve failed: ${err}`);
+      params.resolvedApprovals.delete(approvalId);
     }
+
+    // Cleanup
+    approvalByMessageTs.delete(ts);
   });
 
-  // Handle Deny button
-  app.action("oasis_deny", async ({ ack, body, client }) => {
-    console.log(`[OASIS Bridge] ${params.accountId}: Deny clicked`);
-    await ack();
-    const action = (body as any).actions?.[0];
-    if (!action?.value) return;
-
-    const { id, decision } = JSON.parse(action.value);
-    const channel = (body as any).channel?.id;
-    const threadTs = (body as any).message?.thread_ts;
-
-    try {
-      await client.chat.postMessage({
-        channel,
-        thread_ts: threadTs,
-        text: `/approve ${id} ${decision}`,
-      });
-      await client.chat.update({
-        channel,
-        ts: (body as any).message.ts,
-        text: `❌ Denied`,
-        blocks: buildResolvedBlocks({ decision, resolvedBy: body.user.id }) as any,
-      });
-      console.log(`[OASIS Bridge] Denied ${id.slice(0, 12)}`);
-    } catch (err) {
-      console.error(`[OASIS Bridge] Deny failed: ${err}`);
-    }
-  });
-
-  // Catch any unhandled actions
-  app.action(/.*/, async ({ ack, body }) => {
-    console.log(`[OASIS Bridge] ${params.accountId}: Unhandled action: ${(body as any).actions?.[0]?.action_id}`);
-    await ack();
-  });
-
-  // Log any errors
   app.error(async (error) => {
-    console.error(`[OASIS Bridge] ${params.accountId}: Bolt error:`, error);
+    console.error(`[OASIS Bridge] ${params.accountId}: Error:`, error);
   });
 
   return { app, accountId: params.accountId };
