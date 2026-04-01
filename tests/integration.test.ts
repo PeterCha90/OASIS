@@ -65,4 +65,17 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
     );
     expect(result.block).toBe(true);
   });
+
+  test("approval description should use markdown formatting", async () => {
+    const result = await handleBeforeToolCall(
+      { toolName: "exec", params: { command: "sudo docker-compose up" } },
+      defaultConfig
+    );
+    expect(result.requireApproval).toBeDefined();
+    const desc = result.requireApproval!.description;
+    expect(desc).toContain("**Risk Score:**");
+    expect(desc).toContain("**Tool:**");
+    expect(desc).toContain("**Detected:**");
+    expect(desc).toContain("```");
+  });
 });

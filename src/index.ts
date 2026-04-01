@@ -44,12 +44,12 @@ export async function handleBeforeToolCall(
     return {
       block: true,
       blockReason: [
-        `🚨 OASIS Security Block`,
+        `🚨 *OASIS Security Block*`,
         ``,
-        `Risk Score: ${scanResult.score}/1.0`,
-        `Detected: ${scanResult.reasons.join(", ")}`,
+        `**Risk Score:** \`${scanResult.score}\` / 1.0`,
+        `**Detected:** ${scanResult.reasons.join(", ")}`,
         ``,
-        `This pattern is blocked and cannot be approved.`,
+        `_This pattern is blocked and cannot be approved._`,
       ].join("\n"),
     };
   }
@@ -66,12 +66,14 @@ export async function handleBeforeToolCall(
       requireApproval: {
         title: "🏝️ OASIS Security Review",
         description: [
-          `Risk Score: ${scanResult.score}/1.0`,
-          `Tool: ${toolName}`,
-          `Detected: ${scanResult.reasons.join(", ")}`,
+          `**Risk Score:** \`${scanResult.score}\` / 1.0`,
+          `**Tool:** \`${toolName}\``,
+          `**Detected:** ${scanResult.reasons.join(", ")}`,
           ``,
-          `Parameters:`,
+          `**Parameters:**`,
+          `\`\`\``,
           `${JSON.stringify(params, null, 2).slice(0, 500)}`,
+          `\`\`\``,
         ].join("\n"),
         severity,
         timeoutMs: config.approvalTimeoutMs,
