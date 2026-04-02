@@ -17,9 +17,9 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
   const titleMatch = text.match(/Title:\s*(.+)/);
   const toolMatch = text.match(/^Tool:\s*(\S+)/m);
   const pluginMatch = text.match(/Plugin:\s*(\S+)/);
-  // Match both old format "Risk Score: 0.6 / 1.0" and compact "score:0.6"
-  const riskMatch = text.match(/(?:Risk Score:\s*\*?\*?\s*[`]?([\d.]+)[`]?\s*(?:\*?\*?)?\s*[/|]\s*1\.0|score:([\d.]+))/);
-  const detectedMatch = text.match(/(?:Detected:\s*\*?\*?\s*([^|\n]+)|detected:([^|]+))/);
+  // Score from title "[0.6]" or description "Risk Score: **`0.6`**" or compact "score:0.6"
+  const riskMatch = text.match(/\[([\d.]+)\]/) ?? text.match(/Risk Score:\s*\*?\*?\s*[`]?([\d.]+)/) ?? text.match(/score:([\d.]+)/);
+  const detectedMatch = text.match(/Detected:\s*\*?\*?\s*([^|\n]+)/) ?? text.match(/detected:([^|]+)/);
 
 
   // Extract parameters — from code block, JSON, or compact format

@@ -22,6 +22,9 @@ interface BoltAppParams {
 // Map message ts → approval ID for reaction lookup
 const approvalByMessageTs = new Map<string, string>();
 
+// Cache: bot_id → WebClient (avoids auth.test() on every message)
+const botClientCache = new Map<string, WebClient>();
+
 export function createBoltApp(params: BoltAppParams) {
   const app = new App({
     token: params.botToken,
@@ -64,26 +67,23 @@ export function createBoltApp(params: BoltAppParams) {
     // Store mapping for reaction lookup
     approvalByMessageTs.set(ts, parsed.approvalId);
 
-    // Find the bot that posted the message to update it
+    // Find the bot that posted the message to update it (cached)
     const botId = msg.bot_id;
-    let updateClient: WebClient | null = null;
+    let updateClient: WebClient | null = botClientCache.get(botId) ?? null;
 
-    for (const [, token] of params.allBotTokens) {
-      try {
-        const testClient = new WebClient(token);
-        const authInfo = await testClient.auth.test();
-        if (authInfo.bot_id === botId) {
-          updateClient = testClient;
-          break;
-        }
-      } catch {
-        continue;
+    if (!updateClient) {
+      for (const [, token] of params.allBotTokens) {
+        try {
+          const c = new WebClient(token);
+          const auth = await c.auth.test();
+          if (auth.bot_id) botClientCache.set(auth.bot_id as string, c);
+          if (auth.bot_id === botId) updateClient = c;
+        } catch { continue; }
       }
     }
 
     if (!updateClient) {
-      const firstToken = [...params.allBotTokens.values()][0];
-      if (firstToken) updateClient = new WebClient(firstToken);
+      updateClient = [...params.allBotTokens.values()].map(t => new WebClient(t))[0] ?? null;
     }
 
     if (!updateClient) {
@@ -102,15 +102,15 @@ export function createBoltApp(params: BoltAppParams) {
           parsed.detected ? `*Detected:* ${parsed.detected}` : "",
           parsed.parameters ? `*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 500)}\`\`\`` : "",
           ``,
-          `React ✅ to *Allow* or ❌ to *Deny*`,
+          `React ✅ to *Allow* or 🙅 to *Deny*`,
         ].filter(Boolean).join("\n"),
       });
 
       // Add reaction options to the message
       await updateClient.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
-      await updateClient.reactions.add({ channel, timestamp: ts, name: "x" });
+      await updateClient.reactions.add({ channel, timestamp: ts, name: "no_good" });
 
-      console.log(`[OASIS Bridge] Approval ready: ${parsed.approvalId.slice(0, 12)} — react ✅ or ❌`);
+      console.log(`[OASIS Bridge] Approval ready: ${parsed.approvalId.slice(0, 12)} — react ✅ or 🙅`);
     } catch (err) {
       console.error(`[OASIS Bridge] Failed to update message: ${err}`);
       params.processedMessages.delete(ts);
@@ -146,7 +146,7 @@ export function createBoltApp(params: BoltAppParams) {
     let decision: "allow-once" | "deny";
     if (reactionName === "white_check_mark") {
       decision = "allow-once";
-    } else if (reactionName === "x") {
+    } else if (reactionName === "no_good") {
       decision = "deny";
     } else {
       return;
