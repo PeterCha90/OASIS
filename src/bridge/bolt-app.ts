@@ -9,21 +9,13 @@ interface BoltAppParams {
   appToken: string;
   gatewayPort: number;
   gatewayAuthToken?: string;
-  /** Shared across all bot instances */
-  processedMessages: Set<string>;
-  /** Shared — tracks approval IDs being resolved to prevent duplicates */
+  /** Shared — prevents duplicate approval resolution */
   resolvedApprovals: Set<string>;
   /** Map of all bot tokens by accountId */
   allBotTokens: Map<string, string>;
   /** All bot user IDs — to filter out bot reactions */
   botUserIds: Set<string>;
 }
-
-// Map message ts → approval ID for reaction lookup
-const approvalByMessageTs = new Map<string, string>();
-
-// Cache: bot_id → WebClient (avoids auth.test() on every message)
-const botClientCache = new Map<string, WebClient>();
 
 export function createBoltApp(params: BoltAppParams) {
   const app = new App({
@@ -33,105 +25,9 @@ export function createBoltApp(params: BoltAppParams) {
     logLevel: LogLevel.WARN,
   });
 
-  // Watch for approval messages from OTHER bots.
-  app.event("message", async ({ event }) => {
-    const msg = event as any;
-    const text: string = msg.text ?? "";
-    const ts: string | undefined = msg.ts;
-    const channel: string | undefined = msg.channel;
-
-    if (!ts || !channel) return;
-
-    // Delete "Plugin approval allowed/denied/expired" followup messages
-    if (text.match(/Plugin approval (allowed|denied|expired)/i)) {
-      console.log(`[OASIS Bridge] Deleting followup: "${text.slice(0, 50)}"`);
-      // Use the bot that posted the message to delete it
-      const msgBotId = msg.bot_id;
-      const cached = msgBotId ? botClientCache.get(msgBotId) : null;
-      if (cached) {
-        try { await cached.chat.delete({ channel, ts }); } catch {}
-      } else {
-        for (const [, token] of params.allBotTokens) {
-          try {
-            const c = new WebClient(token);
-            await c.chat.delete({ channel, ts });
-            console.log(`[OASIS Bridge] Followup deleted`);
-            break;
-          } catch { continue; }
-        }
-      }
-      return;
-    }
-
-    if (params.processedMessages.has(ts)) return;
-
-    const parsed = parseApprovalMessage(text);
-    if (!parsed) return;
-
-    params.processedMessages.add(ts);
-
-    // Store mapping for reaction lookup
-    approvalByMessageTs.set(ts, parsed.approvalId);
-
-    // Find the bot that posted the message to update it (cached)
-    const botId = msg.bot_id;
-    let updateClient: WebClient | null = botClientCache.get(botId) ?? null;
-
-    if (!updateClient) {
-      for (const [, token] of params.allBotTokens) {
-        try {
-          const c = new WebClient(token);
-          const auth = await c.auth.test();
-          if (auth.bot_id) botClientCache.set(auth.bot_id as string, c);
-          if (auth.bot_id === botId) updateClient = c;
-        } catch { continue; }
-      }
-    }
-
-    if (!updateClient) {
-      updateClient = [...params.allBotTokens.values()].map(t => new WebClient(t))[0] ?? null;
-    }
-
-    if (!updateClient) {
-      params.processedMessages.delete(ts);
-      return;
-    }
-
-    try {
-      // Update message with clean format + reaction instructions
-      await updateClient.chat.update({
-        channel,
-        ts,
-        text: [
-          `*${parsed.title.replace(/^🏝️\s*/, "🏝️ ")}*`,
-          `*Tool:* \`${parsed.toolName}\`  •  *Risk Score:* \`${parsed.riskScore}\` / 1.0`,
-          parsed.detected ? `*Detected:* ${parsed.detected}` : "",
-          parsed.parameters ? `*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 500)}\`\`\`` : "",
-          ``,
-          `React ✅ to *Allow* or 🙅 to *Deny*`,
-        ].filter(Boolean).join("\n"),
-      });
-
-      // Add reaction options to the message
-      await updateClient.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
-      await updateClient.reactions.add({ channel, timestamp: ts, name: "no_good" });
-
-      console.log(`[OASIS Bridge] Approval ready: ${parsed.approvalId.slice(0, 12)} — react ✅ or 🙅`);
-    } catch (err) {
-      console.error(`[OASIS Bridge] Failed to update message: ${err}`);
-      params.processedMessages.delete(ts);
-    }
-
-    // Prune
-    if (params.processedMessages.size > 1000) {
-      const entries = [...params.processedMessages];
-      for (let i = 0; i < entries.length - 500; i++) {
-        params.processedMessages.delete(entries[i]);
-      }
-    }
-  });
-
-  // Handle reactions — ✅ = allow, ❌ = deny
+  // Handle reactions — ✅ = allow, 🙅 = deny
+  // This is the ONLY detection mechanism. No message event dependency.
+  // When user reacts: fetch the message, parse approval ID, resolve.
   app.event("reaction_added", async ({ event, client }) => {
     const reaction = event as any;
     const ts = reaction.item?.ts;
@@ -141,14 +37,10 @@ export function createBoltApp(params: BoltAppParams) {
 
     if (!ts || !channel) return;
 
-    // Ignore reactions from ANY bot
+    // Ignore bot reactions
     if (params.botUserIds.has(userId)) return;
 
-    // Check if this is a reaction on an approval message
-    const approvalId = approvalByMessageTs.get(ts);
-    if (!approvalId) return;
-
-    // Only process ✅ or ❌
+    // Only process ✅ or 🙅
     let decision: "allow-once" | "deny";
     if (reactionName === "white_check_mark") {
       decision = "allow-once";
@@ -158,49 +50,119 @@ export function createBoltApp(params: BoltAppParams) {
       return;
     }
 
+    // Fetch the message to get the approval ID
+    let messageText = "";
+    try {
+      const result = await client.conversations.replies({
+        channel,
+        ts,
+        limit: 1,
+        inclusive: true,
+      });
+      messageText = (result.messages?.[0] as any)?.text ?? "";
+    } catch {
+      // Try conversations.history as fallback
+      try {
+        const result = await client.conversations.history({
+          channel,
+          latest: ts,
+          limit: 1,
+          inclusive: true,
+        });
+        messageText = (result.messages?.[0] as any)?.text ?? "";
+      } catch {
+        return;
+      }
+    }
+
+    // Parse approval ID from the message
+    const parsed = parseApprovalMessage(messageText);
+    if (!parsed) return;
+
     // Prevent duplicate resolution
-    if (params.resolvedApprovals.has(approvalId)) return;
-    params.resolvedApprovals.add(approvalId);
+    if (params.resolvedApprovals.has(parsed.approvalId)) return;
+    params.resolvedApprovals.add(parsed.approvalId);
 
     const label = decision === "allow-once" ? "Allowed" : "Denied";
-    const emoji = decision === "allow-once" ? "✅" : "❌";
+    const emoji = decision === "allow-once" ? "✅" : "🙅";
 
-    console.log(`[OASIS Bridge] ${params.accountId}: ${label} by user ${userId}`);
+    console.log(`[OASIS Bridge] ${params.accountId}: ${label} by <@${userId}>`);
 
     try {
       await resolveApprovalOneShot(params.gatewayPort, params.gatewayAuthToken, {
-        id: approvalId,
+        id: parsed.approvalId,
         decision,
       });
       console.log(`[OASIS Bridge] Gateway resolved: ${label}`);
 
-      // Find the right bot to update the message
-      const botId = (await client.auth.test()).bot_id;
-      let updateClient: WebClient = client;
-
-      // Try each bot token to find the message owner
+      // Update the message to show result
       for (const [, token] of params.allBotTokens) {
         try {
-          const testClient = new WebClient(token);
-          await testClient.chat.update({
+          const c = new WebClient(token);
+          await c.chat.update({
             channel,
             ts,
             text: `${emoji} *OASIS: ${label}* by <@${userId}>`,
           });
-          updateClient = testClient;
           console.log(`[OASIS Bridge] Message updated: ${label}`);
           break;
-        } catch {
-          continue;
-        }
+        } catch { continue; }
       }
+
+      // Delete any "Plugin approval allowed/denied" followup
+      // Wait a moment for OpenClaw to post it
+      setTimeout(async () => {
+        try {
+          const history = await client.conversations.history({
+            channel,
+            oldest: ts,
+            limit: 5,
+          });
+          for (const msg of history.messages ?? []) {
+            const txt = (msg as any).text ?? "";
+            if (txt.match(/Plugin approval (allowed|denied|expired)/i)) {
+              for (const [, token] of params.allBotTokens) {
+                try {
+                  const c = new WebClient(token);
+                  await c.chat.delete({ channel, ts: (msg as any).ts });
+                  break;
+                } catch { continue; }
+              }
+            }
+          }
+        } catch {}
+      }, 3000);
+
     } catch (err) {
       console.error(`[OASIS Bridge] Resolve failed: ${err}`);
-      params.resolvedApprovals.delete(approvalId);
+      params.resolvedApprovals.delete(parsed.approvalId);
     }
+  });
 
-    // Cleanup
-    approvalByMessageTs.delete(ts);
+  // Also watch messages to add reactions to approval messages (best-effort)
+  app.event("message", async ({ event }) => {
+    const msg = event as any;
+    const text: string = msg.text ?? "";
+    const ts: string | undefined = msg.ts;
+    const channel: string | undefined = msg.channel;
+
+    if (!ts || !channel || !text) return;
+
+    const parsed = parseApprovalMessage(text);
+    if (!parsed) return;
+
+    // Add reaction hints (best-effort — if this fails, user can still react manually)
+    try {
+      for (const [, token] of params.allBotTokens) {
+        try {
+          const c = new WebClient(token);
+          await c.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
+          await c.reactions.add({ channel, timestamp: ts, name: "no_good" });
+          console.log(`[OASIS Bridge] Reactions added to ${parsed.approvalId.slice(0, 12)}`);
+          break;
+        } catch { continue; }
+      }
+    } catch {}
   });
 
   app.error(async (error) => {

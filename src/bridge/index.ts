@@ -21,7 +21,6 @@ export async function startBridge() {
     process.exit(1);
   }
 
-  const processedMessages = new Set<string>();
   const resolvedApprovals = new Set<string>();
   const botUserIds = new Set<string>();
 
@@ -62,7 +61,6 @@ export async function startBridge() {
       appToken,
       gatewayPort: config.gatewayPort,
       gatewayAuthToken: config.gatewayAuthToken,
-      processedMessages,
       resolvedApprovals,
       allBotTokens,
       botUserIds,
