@@ -4,6 +4,5 @@ dist/
 *.js.map
 *.d.ts
 !jest.config.js
-!bin/*.js
 .DS_Store
 .env
