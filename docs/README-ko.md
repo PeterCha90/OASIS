@@ -91,23 +91,64 @@ openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### 2. OASIS Slack 앱 (승인 UI)
+### 2. OASIS Slack 앱 (선택 — 승인 UI)
 
-승인 리액션을 처리할 전용 Slack 앱을 생성합니다:
+> Slack 앱 없이도 OASIS는 작동합니다 — OpenClaw 기본 텍스트 승인(`/approve` 명령)을 사용합니다. Slack 앱을 추가하면 이모지 리액션으로 더 편하게 승인/거부할 수 있습니다.
 
-1. [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
-2. 이름: `OASIS` / Workspace: 본인 워크스페이스
-3. **OAuth & Permissions** → Bot Token Scopes 추가:
-   - `chat:write`, `reactions:read`, `reactions:write`
-   - `channels:history`, `channels:read`
-4. **Socket Mode** → 활성화 → App Token 생성 (이름: `oasis`) → `xapp-...` 복사
-5. **Install to Workspace** → Bot Token `xoxb-...` 복사
-6. **Event Subscriptions** → Subscribe to bot events:
-   - `message.channels`, `reaction_added`
+전용 Slack 앱을 생성합니다:
 
-### 3. 설정
+#### Step 1: 앱 생성
 
-OASIS 플러그인 config에 토큰을 추가합니다:
+1. [api.slack.com/apps](https://api.slack.com/apps) 접속
+2. **Create New App** → **From scratch**
+3. App Name: `OASIS`
+4. 워크스페이스 선택 → **Create App**
+
+#### Step 2: Socket Mode 활성화
+
+1. 좌측 메뉴 → **Socket Mode**
+2. **Enable Socket Mode** 토글 ON
+3. App-Level Token 생성 팝업:
+   - Token Name: `oasis`
+   - Scope: `connections:write` (자동 선택)
+   - **Generate** 클릭
+4. `xapp-...`로 시작하는 토큰 복사 — 이것이 **App Token**
+
+#### Step 3: 봇 권한 설정
+
+1. 좌측 메뉴 → **OAuth & Permissions**
+2. **Scopes** → **Bot Token Scopes** 에서 아래 5개 추가:
+
+| Scope | 용도 |
+|-------|------|
+| `chat:write` | 승인 요약 및 결과 메시지 게시 |
+| `reactions:read` | 사용자의 ✅ 🙅 리액션 감지 |
+| `reactions:write` | 승인 메시지에 ✅ 🙅 리액션 힌트 추가 |
+| `channels:history` | 승인 메시지에서 approval ID 추출 |
+| `channels:read` | 채널 정보 접근 |
+
+#### Step 4: 이벤트 구독
+
+1. 좌측 메뉴 → **Event Subscriptions**
+2. **Enable Events** 토글 ON
+3. **Subscribe to bot events** → **Add Bot User Event** 에서 2개 추가:
+
+| Event | 용도 |
+|-------|------|
+| `message.channels` | OpenClaw 에이전트의 승인 메시지 감지 |
+| `reaction_added` | 사용자의 Allow(✅) / Deny(🙅) 리액션 감지 |
+
+4. **Save Changes** 클릭
+
+#### Step 5: 워크스페이스에 설치
+
+1. 좌측 메뉴 → **Install App**
+2. **Install to Workspace** → **Allow**
+3. `xoxb-...`로 시작하는 **Bot User OAuth Token** 복사 — 이것이 **Bot Token**
+
+### 3. OASIS 설정
+
+OpenClaw 플러그인 config에 두 토큰을 추가합니다:
 
 ```jsonc
 // ~/.openclaw/openclaw.json
@@ -119,8 +160,8 @@ OASIS 플러그인 config에 토큰을 추가합니다:
         "config": {
           "threshold": 0.3,
           "approvalTimeoutMs": 120000,
-          "oasisBotToken": "xoxb-your-oasis-bot-token",
-          "oasisAppToken": "xapp-your-oasis-app-token"
+          "oasisBotToken": "xoxb-여기에-봇-토큰",
+          "oasisAppToken": "xapp-여기에-앱-토큰"
         }
       }
     }
