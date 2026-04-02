@@ -84,38 +84,30 @@ Agent requests tool call
 
 ## Installation
 
-### 1. Plugin (risk scoring engine)
+### 1. Plugin
 
 ```bash
 openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### 2. Slack Bridge (approval buttons)
+### 2. OASIS Slack App (approval UI)
 
-```bash
-npx @petercha90/oasis bridge
-```
+Create a dedicated Slack app for OASIS to handle approval reactions:
 
-The bridge auto-reads all Slack bot/app tokens from `~/.openclaw/openclaw.json` and `~/.openclaw/.env`. No manual token setup needed.
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From scratch**
+2. Name: `OASIS` / Workspace: your workspace
+3. **OAuth & Permissions** → Add Bot Token Scopes:
+   - `chat:write`, `reactions:read`, `reactions:write`
+   - `channels:history`, `channels:read`
+4. **Socket Mode** → Enable → Create App Token (name: `oasis`) → Copy `xapp-...`
+5. **Install to Workspace** → Copy Bot Token `xoxb-...`
+6. **Event Subscriptions** → Subscribe to bot events:
+   - `message.channels`, `reaction_added`
 
-```
-🏝️  OASIS Slack Bridge
-════════════════════════════════════════
+### 3. Configure
 
-  Gateway: ws://127.0.0.1:18789
-
-  ✅ ceo-bot: connected
-  ✅ cpo-bot: connected
-  ✅ cto-bot: connected
-
-🏝️  Bridge running — 3 bot(s) connected
-   Press Ctrl+C to stop
-```
-
-> **Why two steps?** The plugin runs inside the OpenClaw Gateway (risk analysis), but the Gateway cannot render Slack Block Kit buttons directly. The bridge is a lightweight sidecar that adds the button UI via Socket Mode.
-
-### Recommended Config
+Add the tokens to your OASIS plugin config:
 
 ```jsonc
 // ~/.openclaw/openclaw.json
@@ -126,21 +118,34 @@ The bridge auto-reads all Slack bot/app tokens from `~/.openclaw/openclaw.json` 
         "enabled": true,
         "config": {
           "threshold": 0.3,
-          "approvalTimeoutMs": 120000
+          "approvalTimeoutMs": 120000,
+          "oasisBotToken": "xoxb-your-oasis-bot-token",
+          "oasisAppToken": "xapp-your-oasis-app-token"
         }
       }
     }
   },
   "approvals": {
     "plugin": {
-      "enabled": true,
-      "mode": "session"
+      "enabled": true
     }
   }
 }
 ```
 
-> `mode: "session"` ensures approval requests appear in the same conversation thread.
+### 4. Invite OASIS bot to channels
+
+```
+/invite @OASIS
+```
+
+Restart the gateway and OASIS will automatically connect:
+
+```bash
+openclaw gateway restart
+```
+
+> When a tool call requires approval, OASIS adds ✅ and 🙅 reactions. React ✅ to allow, 🙅 to deny.
 
 ---
 
@@ -237,8 +242,6 @@ openclaw gateway restart
 
 ```
 oasis/
-├── bin/
-│   └── oasis.js              # CLI entry (npx @petercha90/oasis bridge)
 ├── src/
 │   ├── index.ts              # Plugin entry (definePluginEntry)
 │   ├── scanner.ts            # Risk scoring engine
@@ -249,14 +252,11 @@ oasis/
 │   ├── types.ts              # TypeScript types
 │   ├── cli/
 │   │   └── setup-wizard.ts   # Plugin CLI commands
-│   └── bridge/
-│       ├── index.ts          # Bridge entry point
-│       ├── bolt-app.ts       # Bolt app (Socket Mode + button handlers)
-│       ├── config-loader.ts  # Auto-load tokens from OpenClaw config
-│       ├── gateway-client.ts # Gateway WebSocket client
-│       ├── approval-parser.ts # Parse approval messages
-│       └── blocks.ts         # Block Kit button builder
-├── tests/                    # 79 tests across 7 suites
+│   └── slack/
+│       ├── approval-handler.ts # Dedicated OASIS Slack app (Socket Mode)
+│       ├── approval-parser.ts  # Parse approval messages
+│       └── gateway-client.ts   # Gateway WebSocket client
+├── tests/                    # 68 tests across 5 suites
 ├── openclaw.plugin.json      # Plugin manifest
 ├── package.json
 └── tsconfig.json
