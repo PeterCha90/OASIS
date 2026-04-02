@@ -153,22 +153,46 @@ export function createBoltApp(params: BoltAppParams) {
     const parsed = parseApprovalMessage(text);
     if (!parsed) return;
 
-    // Only one bot adds reactions
+    // Only one bot handles this message
     if (params.processedMessages.has(ts)) return;
     params.processedMessages.add(ts);
 
-    // Add reaction hints (best-effort)
+    // Find the bot that posted the message to update it
+    const msgBotId = msg.bot_id;
+    let updateClient: WebClient | null = null;
+    for (const [, token] of params.allBotTokens) {
+      try {
+        const c = new WebClient(token);
+        const auth = await c.auth.test();
+        if (auth.bot_id === msgBotId) { updateClient = c; break; }
+      } catch { continue; }
+    }
+    if (!updateClient) {
+      const first = [...params.allBotTokens.values()][0];
+      if (first) updateClient = new WebClient(first);
+    }
+    if (!updateClient) return;
+
+    // Update message to clean format + add reactions
     try {
-      for (const [, token] of params.allBotTokens) {
-        try {
-          const c = new WebClient(token);
-          await c.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
-          await c.reactions.add({ channel, timestamp: ts, name: "no_good" });
-          console.log(`[OASIS Bridge] Reactions added to ${parsed.approvalId.slice(0, 12)}`);
-          break;
-        } catch { continue; }
-      }
-    } catch {}
+      await updateClient.chat.update({
+        channel,
+        ts,
+        text: [
+          `*${parsed.title.replace(/^🏝️\s*/, "🏝️ ")}*`,
+          `*Tool:* \`${parsed.toolName}\`  •  *Risk Score:* \`${parsed.riskScore}\` / 1.0`,
+          parsed.detected ? `*Detected:* ${parsed.detected}` : "",
+          parsed.parameters ? `*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 500)}\`\`\`` : "",
+          ``,
+          `React ✅ to *Allow* or 🙅 to *Deny*`,
+        ].filter(Boolean).join("\n"),
+      });
+      await updateClient.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
+      await updateClient.reactions.add({ channel, timestamp: ts, name: "no_good" });
+      console.log(`[OASIS Bridge] Updated + reactions added: ${parsed.approvalId.slice(0, 12)}`);
+    } catch (err) {
+      console.error(`[OASIS Bridge] Update failed: ${err}`);
+    }
   });
 
   app.error(async (error) => {
