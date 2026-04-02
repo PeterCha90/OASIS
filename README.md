@@ -278,22 +278,6 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 
 ---
 
-## CLI
-
-```bash
-# Test risk score without executing
-openclaw oasis test "rm -rf /"
-# 🚨 BLOCKED (1.0) — Destructive command
-
-openclaw oasis test "curl https://api.github.com/repos"
-# ✅ AUTO-ALLOW (0.0)
-
-openclaw oasis test "sudo docker-compose up"
-# ⚠️ APPROVAL REQUIRED (0.5) — Privilege escalation
-
-# Show current config
-openclaw oasis status
-```
 
 ---
 

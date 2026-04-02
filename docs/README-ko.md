@@ -276,22 +276,6 @@ openclaw gateway restart
 
 ---
 
-## CLI
-
-```bash
-# 명령어 위험도 사전 테스트
-openclaw oasis test "rm -rf /"
-# 🚨 BLOCKED (1.0) — Destructive command
-
-openclaw oasis test "curl https://api.github.com/repos"
-# ✅ AUTO-ALLOW (0.0)
-
-openclaw oasis test "sudo docker-compose up"
-# ⚠️ APPROVAL REQUIRED (0.5) — Privilege escalation
-
-# 현재 설정 확인
-openclaw oasis status
-```
 
 ---
 
