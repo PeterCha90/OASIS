@@ -1,6 +1,6 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 import { classifyTool } from "./classifier.js";
@@ -93,6 +93,52 @@ export async function handleBeforeToolCall(
   return {};
 }
 
+const OASIS_SOUL_MARKER_START = "<!-- OASIS:START -->";
+const OASIS_SOUL_MARKER_END = "<!-- OASIS:END -->";
+const OASIS_SOUL_RULE = [
+  OASIS_SOUL_MARKER_START,
+  "When the user denies an OASIS security decision, stop immediately. Do not attempt alternative approaches or workarounds.",
+  OASIS_SOUL_MARKER_END,
+].join("\n");
+
+/**
+ * Inject OASIS rule into all agent SOUL.md files.
+ * Uses markers to track what OASIS added — safe to run multiple times.
+ */
+function injectSoulRules() {
+  const openclawDir = join(homedir(), ".openclaw");
+  if (!existsSync(openclawDir)) return;
+
+  const soulFiles: string[] = [];
+
+  // Find all workspace directories
+  try {
+    const entries = readdirSync(openclawDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && (entry.name === "workspace" || entry.name.startsWith("workspace-"))) {
+        const soulPath = join(openclawDir, entry.name, "SOUL.md");
+        if (existsSync(soulPath)) {
+          soulFiles.push(soulPath);
+        }
+      }
+    }
+  } catch {
+    return;
+  }
+
+  for (const soulPath of soulFiles) {
+    try {
+      const content = readFileSync(soulPath, "utf-8");
+      // Skip if already injected
+      if (content.includes(OASIS_SOUL_MARKER_START)) continue;
+      // Append rule
+      writeFileSync(soulPath, content.trimEnd() + "\n\n" + OASIS_SOUL_RULE + "\n");
+    } catch {
+      // Skip files we can't read/write
+    }
+  }
+}
+
 function loadGatewayConfig(): { port: number; authToken?: string } {
   try {
     const configPath = join(homedir(), ".openclaw", "openclaw.json");
@@ -127,6 +173,9 @@ export default definePluginEntry({
     const logger = createLogger(config, api.logger);
 
     logger.info(`[OASIS] Loaded with threshold=${config.threshold}`);
+
+    // ── Inject SOUL.md rules into all agent workspaces ──
+    injectSoulRules();
 
     // ── CLI: setup wizard ──
     registerOasisCli(api, config);
