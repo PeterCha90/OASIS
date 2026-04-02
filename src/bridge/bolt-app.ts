@@ -15,6 +15,8 @@ interface BoltAppParams {
   allBotTokens: Map<string, string>;
   /** All bot user IDs — to filter out bot reactions */
   botUserIds: Set<string>;
+  /** Shared — prevents duplicate reaction adding */
+  processedMessages: Set<string>;
 }
 
 export function createBoltApp(params: BoltAppParams) {
@@ -151,7 +153,11 @@ export function createBoltApp(params: BoltAppParams) {
     const parsed = parseApprovalMessage(text);
     if (!parsed) return;
 
-    // Add reaction hints (best-effort — if this fails, user can still react manually)
+    // Only one bot adds reactions
+    if (params.processedMessages.has(ts)) return;
+    params.processedMessages.add(ts);
+
+    // Add reaction hints (best-effort)
     try {
       for (const [, token] of params.allBotTokens) {
         try {
