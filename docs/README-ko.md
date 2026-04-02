@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/OpenClaw-Plugin-blueviolet?style=for-the-badge" alt="OpenClaw Plugin" />
-  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Slack-Required-4A154B?style=for-the-badge&logo=slack" alt="Slack Required" />
   <img src="https://img.shields.io/npm/v/@petercha90/oasis?style=for-the-badge&color=red" alt="npm" />
   <img src="https://img.shields.io/github/license/PeterCha90/oasis?style=for-the-badge" alt="License" />
 </p>
@@ -9,9 +9,9 @@
 <h3 align="center">OpenClaw Antidote for Suspicious Injection Signals</h3>
 
 <p align="center">
+  <b>Slack</b> 전용 OpenClaw 보안 플러그인.<br/>
   모든 tool 호출을 가로채서 deterministic 패턴 매칭으로 위험도를 점수화하고,<br/>
-  위험한 패턴은 자동 차단, 의심스러운 패턴은<br/>
-  <b>Slack/Discord/Telegram 네이티브 버튼으로 승인을 요청하는</b> OpenClaw 플러그인.
+  <b>Slack 버튼으로 승인/거부</b>할 수 있습니다.
 </p>
 
 <p align="center">
@@ -52,8 +52,7 @@ Agent가 tool 호출 요청
    = 1.0        > threshold        ≤ threshold
      │              │                    │
   🚨 차단       ⚠️ 승인 요청        ✅ 자동 허용
-  (해제 불가)    (Slack/Discord/
-                  Telegram 버튼)
+  (해제 불가)    (Slack 버튼)
 ```
 
 ---
@@ -76,9 +75,9 @@ openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### 2. OASIS Slack 앱 (선택 — 승인 UI)
+### 2. OASIS Slack 앱 생성 (필수)
 
-> Slack 앱 없이도 OASIS는 작동합니다 — OpenClaw 기본 텍스트 승인(`/approve` 명령)을 사용합니다. Slack 앱을 추가하면 이모지 리액션으로 더 편하게 승인/거부할 수 있습니다.
+OASIS를 사용하려면 전용 Slack 앱이 **필수**입니다. 승인 버튼과 사용자 인터랙션을 처리합니다.
 
 전용 Slack 앱을 생성합니다:
 
@@ -211,7 +210,7 @@ Gateway 재시작하면 OASIS가 자동 연결됩니다:
 openclaw gateway restart
 ```
 
-> 승인이 필요한 tool 호출 시 OASIS가 ✅ 🙅 리액션을 추가합니다. ✅ = 허용, 🙅 = 거부.
+> 승인이 필요한 tool 호출 시 OASIS가 Slack에 Allow / Deny 버튼을 표시합니다.
 
 ---
 
@@ -252,7 +251,7 @@ openclaw gateway restart
 | `EXTERNAL_URL` | 안전 도메인 외 HTTP 접근 | 0.3 | 승인 요청 |
 
 - **Score 1.0** = 무조건 차단, 승인 불가
-- **Score > threshold** = 사용자 승인 필요 (Slack/Discord/Telegram 버튼)
+- **Score > threshold** = 사용자 승인 필요 (Slack 버튼)
 - **Score ≤ threshold** = 자동 허용
 - 복수 패턴 매칭 시 `max()` 전략 사용
 
@@ -306,7 +305,7 @@ oasis/
 │       ├── approval-handler.ts # 전용 OASIS Slack 앱 (Socket Mode)
 │       ├── approval-parser.ts  # 승인 메시지 파서
 │       └── gateway-client.ts   # Gateway WebSocket 클라이언트
-├── tests/                    # 68개 테스트 (5개 스위트)
+├── tests/                    # 61개 테스트 (5개 스위트)
 ├── openclaw.plugin.json      # 플러그인 매니페스트
 ├── package.json
 └── tsconfig.json

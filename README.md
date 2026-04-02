@@ -1,6 +1,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/OpenClaw-Plugin-blueviolet?style=for-the-badge" alt="OpenClaw Plugin" />
-  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Slack-Required-4A154B?style=for-the-badge&logo=slack" alt="Slack Required" />
   <img src="https://img.shields.io/npm/v/@petercha90/oasis?style=for-the-badge&color=red" alt="npm" />
   <img src="https://img.shields.io/github/license/PeterCha90/oasis?style=for-the-badge" alt="License" />
 </p>
@@ -9,9 +9,9 @@
 <h3 align="center">OpenClaw Antidote for Suspicious Injection Signals</h3>
 
 <p align="center">
-  A native OpenClaw plugin that intercepts every tool call,<br/>
+  A native OpenClaw plugin for <b>Slack</b> that intercepts every tool call,<br/>
   scores risk with deterministic pattern matching,<br/>
-  and <b>blocks or requests approval via Slack/Discord/Telegram buttons.</b>
+  and <b>lets you approve or deny with Slack buttons.</b>
 </p>
 
 <p align="center">
@@ -52,8 +52,7 @@ Agent requests tool call
    = 1.0        > threshold        ≤ threshold
      │              │                    │
   🚨 Block     ⚠️ Approval         ✅ Auto-allow
-  (no override)  (Slack/Discord/
-                  Telegram buttons)
+  (no override)  (Slack buttons)
 ```
 
 ---
@@ -64,23 +63,22 @@ Agent requests tool call
 | ---------------- | --------------- |
 | OpenClaw Gateway | `>= 2026.3.28`  |
 | Node.js          | `>= 22.14`      |
+| Slack workspace  | Required         |
 
 ---
 
 ## Installation
 
-### 1. Plugin
+### 1. Install Plugin
 
 ```bash
 openclaw plugins install @petercha90/oasis
 openclaw gateway restart
 ```
 
-### 2. OASIS Slack App (optional — for approval UI)
+### 2. Create OASIS Slack App
 
-> Without a Slack app, OASIS still works — it uses OpenClaw's built-in text-based approval (`/approve` command). The Slack app adds a better UX with emoji reactions.
-
-Create a dedicated Slack app for OASIS:
+A dedicated Slack app is **required** for OASIS to work. It handles approval buttons and user interactions.
 
 #### Step 1: Create the App
 
@@ -213,7 +211,7 @@ Restart the gateway and OASIS will automatically connect:
 openclaw gateway restart
 ```
 
-> When a tool call requires approval, OASIS adds ✅ and 🙅 reactions. React ✅ to allow, 🙅 to deny.
+> When a tool call requires approval, OASIS posts Allow / Deny buttons in Slack.
 
 ---
 
@@ -230,8 +228,8 @@ Customize via config:
 {
   "config": {
     "customReadTools": ["my_safe_tool"],
-    "customExecuteTools": ["my_dangerous_tool"],
-  },
+    "customExecuteTools": ["my_dangerous_tool"]
+  }
 }
 ```
 
@@ -254,7 +252,7 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 | `EXTERNAL_URL`         | Non-safe-domain HTTP access                      | 0.3     | Ask approval |
 
 - **Score 1.0** = always blocked, no approval possible
-- **Score > threshold** = user approval required (Slack/Discord/Telegram buttons)
+- **Score > threshold** = user approval required (Slack buttons)
 - **Score ≤ threshold** = auto-allowed
 - Multiple matches use `max()` strategy
 
@@ -275,9 +273,6 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 ### Built-in Safe Domains
 
 `github.com`, `npmjs.com`, `pypi.org`, `crates.io`, `api.anthropic.com`, `api.openai.com`, `docs.openclaw.ai`, `stackoverflow.com` and more.
-
----
-
 
 ---
 
@@ -308,7 +303,7 @@ oasis/
 │       ├── approval-handler.ts # Dedicated OASIS Slack app (Socket Mode)
 │       ├── approval-parser.ts  # Parse approval messages
 │       └── gateway-client.ts   # Gateway WebSocket client
-├── tests/                    # 68 tests across 5 suites
+├── tests/                    # 61 tests across 5 suites
 ├── openclaw.plugin.json      # Plugin manifest
 ├── package.json
 └── tsconfig.json
