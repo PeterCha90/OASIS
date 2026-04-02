@@ -39,16 +39,8 @@ export async function handleBeforeToolCall(
     if (scanResult.score > 0) {
       return {
         requireApproval: {
-          title: "🏝️ OASIS: Sensitive File Access",
-          description: [
-            `**Tool:** \`${toolName}\``,
-            `**Detected:** ${scanResult.reasons.join(", ")}`,
-            ``,
-            `**Parameters:**`,
-            `\`\`\``,
-            `${JSON.stringify(params, null, 2).slice(0, 500)}`,
-            `\`\`\``,
-          ].join("\n"),
+          title: "🏝️ OASIS",
+          description: "Loading...",
           severity: "warning",
           timeoutMs: config.approvalTimeoutMs,
           timeoutBehavior: "deny",
@@ -86,17 +78,8 @@ export async function handleBeforeToolCall(
 
     return {
       requireApproval: {
-        title: "🏝️ OASIS Security Review",
-        description: [
-          `**Risk Score:** \`${scanResult.score}\` / 1.0`,
-          `**Tool:** \`${toolName}\``,
-          `**Detected:** ${scanResult.reasons.join(", ")}`,
-          ``,
-          `**Parameters:**`,
-          `\`\`\``,
-          `${JSON.stringify(params, null, 2).slice(0, 500)}`,
-          `\`\`\``,
-        ].join("\n"),
+        title: "🏝️ OASIS",
+        description: "Loading...",
         severity,
         timeoutMs: config.approvalTimeoutMs,
         timeoutBehavior: "deny",

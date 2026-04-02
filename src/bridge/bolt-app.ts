@@ -31,7 +31,6 @@ export function createBoltApp(params: BoltAppParams) {
   });
 
   // Watch for approval messages from OTHER bots.
-  // When detected: update message with instructions + add ✅ ❌ reactions.
   app.event("message", async ({ event }) => {
     const msg = event as any;
     const text: string = msg.text ?? "";
@@ -39,6 +38,22 @@ export function createBoltApp(params: BoltAppParams) {
     const channel: string | undefined = msg.channel;
 
     if (!ts || !channel) return;
+
+    // Delete "Plugin approval allowed/denied" followup messages
+    if (text.match(/Plugin approval (allowed|denied)/i) && msg.bot_id) {
+      try {
+        // Find the bot that posted it to delete it
+        for (const [, token] of params.allBotTokens) {
+          try {
+            const c = new WebClient(token);
+            await c.chat.delete({ channel, ts });
+            break;
+          } catch { continue; }
+        }
+      } catch {}
+      return;
+    }
+
     if (params.processedMessages.has(ts)) return;
 
     const parsed = parseApprovalMessage(text);
