@@ -17,11 +17,12 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
   const titleMatch = text.match(/Title:\s*(.+)/);
   const toolMatch = text.match(/^Tool:\s*(\S+)/m);
   const pluginMatch = text.match(/Plugin:\s*(\S+)/);
-  const riskMatch = text.match(/Risk Score:\s*\*?\*?\s*[`]?([\d.]+)[`]?\s*\*?\*?\s*\/\s*1\.0/);
-  const detectedMatch = text.match(/Detected:\s*\*?\*?\s*(.+)/);
+  // Match both old format "Risk Score: 0.6 / 1.0" and compact "score:0.6"
+  const riskMatch = text.match(/(?:Risk Score:\s*\*?\*?\s*[`]?([\d.]+)[`]?\s*(?:\*?\*?)?\s*[/|]\s*1\.0|score:([\d.]+))/);
+  const detectedMatch = text.match(/(?:Detected:\s*\*?\*?\s*([^|\n]+)|detected:([^|]+))/);
 
 
-  // Extract parameters block
+  // Extract parameters — from code block, JSON, or compact format
   let parameters = "";
   const paramStart = text.indexOf("Parameters:");
   if (paramStart !== -1) {
@@ -30,10 +31,14 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
     if (blockMatch) {
       parameters = blockMatch[1].trim();
     } else {
-      // Try to find JSON block
       const jsonMatch = afterParam.match(/\{[\s\S]*?\}/);
       if (jsonMatch) parameters = jsonMatch[0].trim();
     }
+  }
+  // Compact format: params:{...}
+  if (!parameters) {
+    const compactParams = text.match(/params:(\{[^}]+\})/);
+    if (compactParams) parameters = compactParams[1];
   }
 
   return {
@@ -41,8 +46,8 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
     title: titleMatch?.[1]?.trim() ?? "Approval Required",
     toolName: toolMatch?.[1] ?? "unknown",
     pluginName: pluginMatch?.[1] ?? "unknown",
-    riskScore: riskMatch?.[1] ?? "?",
-    detected: detectedMatch?.[1]?.trim() ?? "",
+    riskScore: riskMatch?.[1] ?? riskMatch?.[2] ?? "?",
+    detected: (detectedMatch?.[1] ?? detectedMatch?.[2] ?? "").trim(),
     parameters,
   };
 }

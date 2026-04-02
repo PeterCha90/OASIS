@@ -105,10 +105,9 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
     );
     expect(result.requireApproval).toBeDefined();
     const desc = result.requireApproval!.description;
-    expect(desc).toContain("**Risk Score:**");
-    expect(desc).toContain("**Tool:**");
-    expect(desc).toContain("**Detected:**");
-    expect(desc).toContain("```");
+    expect(desc).toContain("score:");
+    expect(desc).toContain("tool:");
+    expect(desc).toContain("detected:");
   });
 });
 
