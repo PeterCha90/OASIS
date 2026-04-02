@@ -1,7 +1,10 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
 import { classifyTool } from "./classifier.js";
-import { scanForRisks, scanTextForSecrets } from "./scanner.js";
+import { scanForRisks } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
 import { registerOasisCli } from "./cli/setup-wizard.js";
@@ -90,64 +93,28 @@ export async function handleBeforeToolCall(
   return {};
 }
 
-/**
- * Extract text content from an AgentMessage for secret scanning.
- * AgentMessage can be a standard LLM message (role + content) or custom type.
- */
-function extractMessageText(message: unknown): string {
-  if (!message || typeof message !== "object") return "";
-  const msg = message as Record<string, unknown>;
-
-  // Standard LLM message: { role, content }
-  if (typeof msg.content === "string") return msg.content;
-
-  // Content might be an array of parts (multimodal messages)
-  if (Array.isArray(msg.content)) {
-    return msg.content
-      .map((part: unknown) => {
-        if (typeof part === "string") return part;
-        if (part && typeof part === "object" && "text" in part) {
-          return (part as { text: string }).text;
-        }
-        return "";
-      })
-      .join(" ");
+function loadGatewayConfig(): { port: number; authToken?: string } {
+  try {
+    const configPath = join(homedir(), ".openclaw", "openclaw.json");
+    const envPath = join(homedir(), ".openclaw", ".env");
+    const config = JSON.parse(readFileSync(configPath, "utf-8"));
+    const port = config.gateway?.port ?? 18789;
+    let authToken: string | undefined;
+    if (config.gateway?.auth?.mode === "token" && config.gateway?.auth?.token?.id) {
+      const envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
+      const tokenKey = config.gateway.auth.token.id;
+      const match = envContent.match(new RegExp(`^${tokenKey}=(.+)$`, "m"));
+      authToken = match?.[1]?.trim();
+    }
+    return { port, authToken };
+  } catch {
+    return { port: 18789 };
   }
-
-  // Fallback: try text field
-  if (typeof msg.text === "string") return msg.text;
-
-  return "";
-}
-
-interface BeforeMessageWriteResult {
-  block?: boolean;
-}
-
-/**
- * Scans agent messages for secret content before they are written/sent.
- * Blocks messages that contain credentials, tokens, or keys.
- */
-export function handleBeforeMessageWrite(
-  event: { message: unknown },
-  _config: OasisConfig
-): BeforeMessageWriteResult {
-  const text = extractMessageText(event.message);
-  if (!text) return {};
-
-  const result = scanTextForSecrets(text);
-
-  if (result.detected) {
-    return { block: true };
-  }
-
-  return {};
 }
 
 /**
  * OpenClaw plugin entry point.
- * Registers the before_tool_call hook for deterministic risk scoring
- * and before_message_write hook for secret leakage prevention.
+ * Registers the before_tool_call hook for deterministic risk scoring.
  */
 export default definePluginEntry({
   id: "oasis",
@@ -190,19 +157,22 @@ export default definePluginEntry({
       return result;
     }, { priority: 10 });
 
-    // ── Secret Leakage Guard: before_message_write ──
-    api.on("before_message_write", (event, _ctx) => {
-      const text = extractMessageText(event.message);
-      if (!text) return;
-
-      const result = scanTextForSecrets(text);
-
-      if (result.detected) {
-        logger.warn(
-          `[OASIS] Message blocked: ${result.reasons.join(", ")}`
-        );
-        return { block: true };
-      }
-    }, { priority: 10 });
+    // ── Slack App: dedicated OASIS bot ──
+    if (config.oasisBotToken && config.oasisAppToken) {
+      import("./slack/approval-handler.js").then(({ createOasisSlackApp }) => {
+        const gw = loadGatewayConfig();
+        const slackApp = createOasisSlackApp({
+          botToken: config.oasisBotToken!,
+          appToken: config.oasisAppToken!,
+          gatewayPort: gw.port,
+          gatewayAuthToken: gw.authToken,
+        });
+        slackApp.start().then(() => {
+          logger.info("[OASIS] Slack app connected");
+        }).catch((err: unknown) => {
+          logger.warn(`[OASIS] Slack app failed: ${err}`);
+        });
+      });
+    }
   },
 });

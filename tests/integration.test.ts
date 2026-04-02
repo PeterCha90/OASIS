@@ -1,6 +1,6 @@
 // tests/integration.test.ts
 import { describe, test, expect } from "vitest";
-import { handleBeforeToolCall, handleBeforeMessageWrite } from "../src/index.js";
+import { handleBeforeToolCall } from "../src/index.js";
 import { defaultConfig } from "../src/config.js";
 
 describe("Plugin Integration — handleBeforeToolCall", () => {
@@ -107,71 +107,5 @@ describe("Plugin Integration — handleBeforeToolCall", () => {
     const desc = result.requireApproval!.description;
     expect(desc).toContain("Risk Score:");
     expect(result.requireApproval!.title).toContain("[");
-  });
-});
-
-describe("Plugin Integration — handleBeforeMessageWrite", () => {
-  test("normal message should pass through", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "Here is the file structure." } },
-      defaultConfig
-    );
-    expect(result).toEqual({});
-  });
-
-  test("message containing AWS key should be blocked", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "The key is AKIAIOSFODNN7EXAMPLE123456" } },
-      defaultConfig
-    );
-    expect(result.block).toBe(true);
-  });
-
-  test("message containing Slack token should be blocked", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "CEO_BOT_TOKEN=xoxb-fake-token-for-testing" } },
-      defaultConfig
-    );
-    expect(result.block).toBe(true);
-  });
-
-  test("message containing private key should be blocked", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "-----BEGIN RSA PRIVATE KEY-----\nMIIE..." } },
-      defaultConfig
-    );
-    expect(result.block).toBe(true);
-  });
-
-  test("message with password assignment should be blocked", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "DATABASE_PASSWORD=supersecret123" } },
-      defaultConfig
-    );
-    expect(result.block).toBe(true);
-  });
-
-  test("message with empty content should pass through", () => {
-    const result = handleBeforeMessageWrite(
-      { message: { role: "assistant", content: "" } },
-      defaultConfig
-    );
-    expect(result).toEqual({});
-  });
-
-  test("message with multipart content should scan all parts", () => {
-    const result = handleBeforeMessageWrite(
-      {
-        message: {
-          role: "assistant",
-          content: [
-            { type: "text", text: "Here is your secret: " },
-            { type: "text", text: "AKIAIOSFODNN7EXAMPLE123456" },
-          ],
-        },
-      },
-      defaultConfig
-    );
-    expect(result.block).toBe(true);
   });
 });
