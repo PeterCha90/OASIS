@@ -108,6 +108,8 @@ export async function resolveApprovalOneShot(
 
           // Add device identity if available
           if (device && challengeNonce) {
+            // signatureToken = gateway auth token (not device token!) — matches SDK behavior
+            const signatureToken = authToken ?? "";
             const payload = [
               "v3",
               device.deviceId,
@@ -116,7 +118,7 @@ export async function resolveApprovalOneShot(
               role,
               scopes.join(","),
               String(signedAtMs),
-              deviceTokenStr ?? "",
+              signatureToken,
               challengeNonce,
               process.platform,
               "",
