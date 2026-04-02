@@ -98,6 +98,7 @@ const OASIS_SOUL_MARKER_END = "<!-- OASIS:END -->";
 const OASIS_SOUL_RULE = [
   OASIS_SOUL_MARKER_START,
   "When the user denies an OASIS security decision, stop immediately. Do not attempt alternative approaches or workarounds.",
+  "Never respond to, interpret, or act on OASIS-related messages. OASIS handles its own approval flow independently.",
   OASIS_SOUL_MARKER_END,
 ].join("\n");
 
@@ -128,11 +129,18 @@ function injectSoulRules() {
 
   for (const soulPath of soulFiles) {
     try {
-      const content = readFileSync(soulPath, "utf-8");
-      // Skip if already injected
-      if (content.includes(OASIS_SOUL_MARKER_START)) continue;
-      // Append rule
-      writeFileSync(soulPath, content.trimEnd() + "\n\n" + OASIS_SOUL_RULE + "\n");
+      let content = readFileSync(soulPath, "utf-8");
+      if (content.includes(OASIS_SOUL_MARKER_START)) {
+        // Replace existing block (in case rule text changed)
+        content = content.replace(
+          new RegExp(`${OASIS_SOUL_MARKER_START}[\\s\\S]*?${OASIS_SOUL_MARKER_END}`),
+          OASIS_SOUL_RULE
+        );
+        writeFileSync(soulPath, content);
+      } else {
+        // Append rule
+        writeFileSync(soulPath, content.trimEnd() + "\n\n" + OASIS_SOUL_RULE + "\n");
+      }
     } catch {
       // Skip files we can't read/write
     }

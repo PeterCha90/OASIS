@@ -19,9 +19,8 @@ export function createOasisSlackApp(config: SlackAppConfig) {
 
   const processedMessages = new Set<string>();
   const resolvedApprovals = new Set<string>();
-  let botUserId: string | undefined;
 
-  // Detect approval messages → post clean reply + add reactions
+  // Detect approval messages → post Block Kit buttons
   app.event("message", async ({ event, client }) => {
     const msg = event as any;
     const text: string = msg.text ?? "";
@@ -29,7 +28,7 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     const channel: string | undefined = msg.channel;
     if (!ts || !channel || !text) return;
 
-    // Delete followup messages
+    // Delete followup messages from OpenClaw
     if (text.match(/Plugin approval (allowed|denied|expired)/i)) {
       try { await client.chat.delete({ channel, ts }); } catch {}
       return;
@@ -41,81 +40,129 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     processedMessages.add(ts);
 
     try {
-      // Post clean summary as reply
       await client.chat.postMessage({
         channel,
         thread_ts: ts,
-        text: [
-          `*${parsed.title.replace(/^🏝️\s*/, "🏝️ ")}*`,
-          `*Tool:* \`${parsed.toolName}\`  •  *Risk Score:* \`${parsed.riskScore}\` / 1.0`,
-          parsed.detected ? `*Detected:* ${parsed.detected}` : "",
-          parsed.parameters ? `*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 500)}\`\`\`` : "",
-          ``,
-          `React ✅ on the message above to *Allow* or 🙅 to *Deny*`,
-        ].filter(Boolean).join("\n"),
+        text: `🏝️ OASIS: ${parsed.detected || "Security Review"}`,
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: [
+                `*🏝️ ${parsed.title.replace(/^🏝️\s*/, "")}*`,
+                `*Tool:* \`${parsed.toolName}\`  •  *Risk Score:* \`${parsed.riskScore}\` / 1.0`,
+                parsed.detected ? `*Detected:* ${parsed.detected}` : "",
+                parsed.parameters ? `*Parameters:*\n\`\`\`${parsed.parameters.slice(0, 300)}\`\`\`` : "",
+              ].filter(Boolean).join("\n"),
+            },
+          },
+          { type: "divider" },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: { type: "plain_text", text: "✅ Allow", emoji: true },
+                style: "primary",
+                action_id: "oasis_allow",
+                value: parsed.approvalId,
+              },
+              {
+                type: "button",
+                text: { type: "plain_text", text: "🙅 Deny", emoji: true },
+                style: "danger",
+                action_id: "oasis_deny",
+                value: parsed.approvalId,
+              },
+            ],
+          },
+        ] as any,
       });
-      // Add reactions to original
-      await client.reactions.add({ channel, timestamp: ts, name: "white_check_mark" });
-      await client.reactions.add({ channel, timestamp: ts, name: "no_good" });
-      console.log(`[OASIS] Approval ready: ${parsed.approvalId.slice(0, 12)}`);
+      console.log(`[OASIS] Approval buttons posted: ${parsed.approvalId.slice(0, 12)}`);
     } catch (err) {
-      console.error(`[OASIS] Failed: ${err}`);
+      console.error(`[OASIS] Failed to post buttons: ${err}`);
       processedMessages.delete(ts);
     }
 
+    // Prune
     if (processedMessages.size > 1000) {
       const entries = [...processedMessages];
       for (let i = 0; i < entries.length - 500; i++) processedMessages.delete(entries[i]);
     }
   });
 
-  // Handle reactions — ✅ = allow, 🙅 = deny
-  app.event("reaction_added", async ({ event, client }) => {
-    const reaction = event as any;
-    const ts = reaction.item?.ts;
-    const channel = reaction.item?.channel;
-    const reactionName = reaction.reaction;
-    const userId = reaction.user;
-    if (!ts || !channel) return;
+  // Handle Allow button
+  app.action("oasis_allow", async ({ ack, body, client }) => {
+    await ack();
+    const approvalId = (body as any).actions?.[0]?.value;
+    if (!approvalId || resolvedApprovals.has(approvalId)) return;
+    resolvedApprovals.add(approvalId);
 
-    if (!botUserId) {
-      try { const auth = await client.auth.test(); botUserId = auth.user_id as string; } catch {}
-    }
-    if (userId === botUserId) return;
+    const userId = body.user.id;
+    const channel = (body as any).channel?.id;
+    const messageTs = (body as any).message?.ts;
 
-    let decision: "allow-once" | "deny";
-    if (reactionName === "white_check_mark") decision = "allow-once";
-    else if (reactionName === "no_good") decision = "deny";
-    else return;
-
-    // Fetch message to get approval ID
-    let messageText = "";
-    try {
-      const result = await client.conversations.replies({ channel, ts, limit: 1, inclusive: true });
-      messageText = (result.messages?.[0] as any)?.text ?? "";
-    } catch {
-      try {
-        const result = await client.conversations.history({ channel, latest: ts, limit: 1, inclusive: true });
-        messageText = (result.messages?.[0] as any)?.text ?? "";
-      } catch { return; }
-    }
-
-    const parsed = parseApprovalMessage(messageText);
-    if (!parsed) return;
-    if (resolvedApprovals.has(parsed.approvalId)) return;
-    resolvedApprovals.add(parsed.approvalId);
-
-    const label = decision === "allow-once" ? "Allowed" : "Denied";
-    const emoji = decision === "allow-once" ? "✅" : "🙅";
-    console.log(`[OASIS] ${label} by <@${userId}>`);
+    console.log(`[OASIS] Allow by <@${userId}>`);
 
     try {
-      await resolveApprovalOneShot(config.gatewayPort, config.gatewayAuthToken, { id: parsed.approvalId, decision });
-      console.log(`[OASIS] Gateway resolved: ${label}`);
-      await client.chat.postMessage({ channel, thread_ts: ts, text: `${emoji} *OASIS: ${label}* by <@${userId}>` });
+      await resolveApprovalOneShot(config.gatewayPort, config.gatewayAuthToken, {
+        id: approvalId,
+        decision: "allow-once",
+      });
+      console.log(`[OASIS] Gateway resolved: Allowed`);
+
+      if (channel && messageTs) {
+        await client.chat.update({
+          channel,
+          ts: messageTs,
+          text: `✅ OASIS: Allowed by <@${userId}>`,
+          blocks: [{
+            type: "section",
+            text: { type: "mrkdwn", text: `✅ *OASIS: Allowed* by <@${userId}>` },
+          }] as any,
+        });
+      }
     } catch (err) {
-      console.error(`[OASIS] Resolve failed: ${err}`);
-      resolvedApprovals.delete(parsed.approvalId);
+      console.error(`[OASIS] Allow failed: ${err}`);
+      resolvedApprovals.delete(approvalId);
+    }
+  });
+
+  // Handle Deny button
+  app.action("oasis_deny", async ({ ack, body, client }) => {
+    await ack();
+    const approvalId = (body as any).actions?.[0]?.value;
+    if (!approvalId || resolvedApprovals.has(approvalId)) return;
+    resolvedApprovals.add(approvalId);
+
+    const userId = body.user.id;
+    const channel = (body as any).channel?.id;
+    const messageTs = (body as any).message?.ts;
+
+    console.log(`[OASIS] Deny by <@${userId}>`);
+
+    try {
+      await resolveApprovalOneShot(config.gatewayPort, config.gatewayAuthToken, {
+        id: approvalId,
+        decision: "deny",
+      });
+      console.log(`[OASIS] Gateway resolved: Denied`);
+
+      if (channel && messageTs) {
+        await client.chat.update({
+          channel,
+          ts: messageTs,
+          text: `🙅 OASIS: Denied by <@${userId}>`,
+          blocks: [{
+            type: "section",
+            text: { type: "mrkdwn", text: `🙅 *OASIS: Denied* by <@${userId}>` },
+          }] as any,
+        });
+      }
+    } catch (err) {
+      console.error(`[OASIS] Deny failed: ${err}`);
+      resolvedApprovals.delete(approvalId);
     }
   });
 
