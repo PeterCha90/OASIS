@@ -1,3 +1,4 @@
+import { WebClient } from "@slack/web-api";
 import { loadBridgeConfig } from "./config-loader.js";
 import { createBoltApp } from "./bolt-app.js";
 
@@ -22,12 +23,24 @@ export async function startBridge() {
 
   const processedMessages = new Set<string>();
   const resolvedApprovals = new Set<string>();
+  const botUserIds = new Set<string>();
 
-  // Collect all bot tokens so any bot can update any other bot's messages
+  // Collect all bot tokens
   const allBotTokens = new Map<string, string>();
   for (const account of config.accounts) {
     const botToken = config.tokens[account.botTokenEnvKey];
     if (botToken) allBotTokens.set(account.id, botToken);
+  }
+
+  // Resolve all bot user IDs upfront
+  for (const [accountId, token] of allBotTokens) {
+    try {
+      const client = new WebClient(token);
+      const auth = await client.auth.test();
+      if (auth.user_id) botUserIds.add(auth.user_id as string);
+    } catch {
+      console.warn(`  ⚠️  ${accountId}: could not resolve bot user ID`);
+    }
   }
 
   let connectedCount = 0;
@@ -52,6 +65,7 @@ export async function startBridge() {
       processedMessages,
       resolvedApprovals,
       allBotTokens,
+      botUserIds,
     });
 
     try {
@@ -71,7 +85,7 @@ export async function startBridge() {
   }
 
   console.log("");
-  console.log(`🏝️  Bridge running — ${connectedCount} bot(s)`);
+  console.log(`🏝️  Bridge running — ${connectedCount} bot(s), ${botUserIds.size} bot IDs filtered`);
   console.log("   Press Ctrl+C to stop");
   console.log("");
 }

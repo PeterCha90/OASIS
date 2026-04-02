@@ -15,6 +15,8 @@ interface BoltAppParams {
   resolvedApprovals: Set<string>;
   /** Map of all bot tokens by accountId */
   allBotTokens: Map<string, string>;
+  /** All bot user IDs — to filter out bot reactions */
+  botUserIds: Set<string>;
 }
 
 // Map message ts → approval ID for reaction lookup
@@ -109,9 +111,6 @@ export function createBoltApp(params: BoltAppParams) {
     }
   });
 
-  // Track bot user IDs to ignore bot-added reactions
-  let botUserId: string | undefined;
-
   // Handle reactions — ✅ = allow, ❌ = deny
   app.event("reaction_added", async ({ event, client }) => {
     const reaction = event as any;
@@ -122,16 +121,8 @@ export function createBoltApp(params: BoltAppParams) {
 
     if (!ts || !channel) return;
 
-    // Resolve own bot user ID once
-    if (!botUserId) {
-      try {
-        const auth = await client.auth.test();
-        botUserId = auth.user_id as string;
-      } catch {}
-    }
-
-    // Ignore reactions from bots (including self)
-    if (userId === botUserId) return;
+    // Ignore reactions from ANY bot
+    if (params.botUserIds.has(userId)) return;
 
     // Check if this is a reaction on an approval message
     const approvalId = approvalByMessageTs.get(ts);
