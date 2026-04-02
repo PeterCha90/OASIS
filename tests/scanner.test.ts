@@ -1,6 +1,6 @@
 // tests/scanner.test.ts
 import { describe, test, expect } from "vitest";
-import { scanForRisks, scanTextForSecrets } from "../src/scanner.js";
+import { scanForRisks } from "../src/scanner.js";
 import { defaultConfig } from "../src/config.js";
 
 describe("Risk Scanner", () => {
@@ -135,50 +135,3 @@ describe("Risk Scanner", () => {
   });
 });
 
-describe("Secret Output Detection", () => {
-  test("should detect AWS-style keys in output", () => {
-    const result = scanTextForSecrets("AKIAIOSFODNN7EXAMPLE");
-    expect(result.detected).toBe(true);
-    expect(result.reasons.length).toBeGreaterThan(0);
-  });
-
-  test("should detect generic API keys", () => {
-    const result = scanTextForSecrets(
-      "API_KEY=sk-1234567890abcdef1234567890abcdef"
-    );
-    expect(result.detected).toBe(true);
-  });
-
-  test("should detect Slack tokens", () => {
-    const result = scanTextForSecrets(
-      "xoxb-fake-token-for-testing"
-    );
-    expect(result.detected).toBe(true);
-  });
-
-  test("should detect private keys", () => {
-    const result = scanTextForSecrets("-----BEGIN RSA PRIVATE KEY-----");
-    expect(result.detected).toBe(true);
-  });
-
-  test("should detect KEY=VALUE patterns with secret-like keys", () => {
-    const result = scanTextForSecrets(
-      "DATABASE_PASSWORD=supersecret123"
-    );
-    expect(result.detected).toBe(true);
-  });
-
-  test("should not flag normal text", () => {
-    const result = scanTextForSecrets(
-      "Hello, the file contains configuration for the app."
-    );
-    expect(result.detected).toBe(false);
-  });
-
-  test("should not flag normal code", () => {
-    const result = scanTextForSecrets(
-      "function getApiKey() { return process.env.API_KEY; }"
-    );
-    expect(result.detected).toBe(false);
-  });
-});

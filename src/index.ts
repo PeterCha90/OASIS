@@ -192,25 +192,15 @@ export default definePluginEntry({
 
     // ── Core Hook: before_tool_call ──
     api.on("before_tool_call", async (event, _ctx) => {
-      // DEBUG: log every tool call to diagnose hook behavior
-      const classification = classifyTool(event.toolName, config);
-      logger.warn(
-        `[OASIS DEBUG] toolName="${event.toolName}" classification="${classification}" params=${JSON.stringify(event.params).slice(0, 200)}`
-      );
-
       const result = await handleBeforeToolCall(event, config);
 
       if (result.block) {
         logger.warn(`[OASIS] BLOCKED: ${event.toolName}`);
       } else if (result.requireApproval) {
-        logger.warn(`[OASIS] Approval requested: ${event.toolName}`);
+        logger.info(`[OASIS] Approval requested: ${event.toolName}`);
         result.requireApproval.onResolution = async (decision) => {
-          logger.info(
-            `[OASIS] Resolution: ${decision} for ${event.toolName}`
-          );
+          logger.info(`[OASIS] Resolution: ${decision} for ${event.toolName}`);
         };
-      } else {
-        logger.warn(`[OASIS DEBUG] PASSED: ${event.toolName}`);
       }
 
       return result;

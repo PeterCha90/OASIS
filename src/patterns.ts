@@ -77,45 +77,6 @@ export const RISK_PATTERNS: DetectionPattern[] = [
   },
 ];
 
-/** Patterns for detecting secrets in outbound message content */
-export const SECRET_OUTPUT_PATTERNS: DetectionPattern[] = [
-  {
-    id: "AWS_KEY",
-    regex: /AKIA[0-9A-Z]{16}/,
-    score: 1.0,
-    description: "AWS Access Key",
-    severity: "critical",
-  },
-  {
-    id: "SLACK_TOKEN",
-    regex: /xox[bporas]-[0-9a-zA-Z-]+/,
-    score: 1.0,
-    description: "Slack token",
-    severity: "critical",
-  },
-  {
-    id: "PRIVATE_KEY",
-    regex: /-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----/,
-    score: 1.0,
-    description: "Private key",
-    severity: "critical",
-  },
-  {
-    id: "GENERIC_SECRET_VALUE",
-    regex: /(?:SECRET|PASSWORD|TOKEN|API_KEY|APIKEY|AUTH|CREDENTIAL)[_\s]*[=:]\s*\S{8,}/i,
-    score: 1.0,
-    description: "Secret value assignment",
-    severity: "critical",
-  },
-  {
-    id: "GENERIC_HIGH_ENTROPY",
-    regex: /(?:sk|pk|key|token|secret|password)[-_][a-zA-Z0-9]{20,}/i,
-    score: 1.0,
-    description: "High-entropy secret token",
-    severity: "critical",
-  },
-];
-
 /** Domains that are considered safe (skip EXTERNAL_URL scoring) */
 export const DEFAULT_SAFE_DOMAINS: string[] = [
   "github.com",
