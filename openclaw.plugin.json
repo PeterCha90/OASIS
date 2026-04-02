@@ -66,12 +66,18 @@
         "default": "info"
       },
       "oasisBotToken": {
-        "type": "string",
-        "description": "Bot token for the dedicated OASIS Slack app (xoxb-...)"
+        "oneOf": [
+          { "type": "string" },
+          { "type": "object", "properties": { "source": { "type": "string" }, "provider": { "type": "string" }, "id": { "type": "string" } }, "required": ["source", "id"] }
+        ],
+        "description": "Bot token for the dedicated OASIS Slack app (xoxb-...). Supports SecretRef."
       },
       "oasisAppToken": {
-        "type": "string",
-        "description": "App-level token for the dedicated OASIS Slack app (xapp-...)"
+        "oneOf": [
+          { "type": "string" },
+          { "type": "object", "properties": { "source": { "type": "string" }, "provider": { "type": "string" }, "id": { "type": "string" } }, "required": ["source", "id"] }
+        ],
+        "description": "App-level token for the dedicated OASIS Slack app (xapp-...). Supports SecretRef."
       }
     }
   },

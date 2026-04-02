@@ -149,6 +149,29 @@ function injectSoulRules() {
   }
 }
 
+/**
+ * Resolve a config value that may be a string or a SecretRef object.
+ * SecretRef: { source: "env", provider: "default", id: "ENV_VAR_NAME" }
+ */
+function resolveSecretRef(value: unknown): string | undefined {
+  if (typeof value === "string") return value || undefined;
+  if (value && typeof value === "object" && "id" in value) {
+    const ref = value as { source?: string; id: string };
+    if (ref.source === "env") {
+      // Read from ~/.openclaw/.env
+      const envPath = join(homedir(), ".openclaw", ".env");
+      if (existsSync(envPath)) {
+        const content = readFileSync(envPath, "utf-8");
+        const match = content.match(new RegExp(`^${ref.id}=(.+)$`, "m"));
+        return match?.[1]?.trim();
+      }
+      // Fallback to process.env
+      return process.env[ref.id];
+    }
+  }
+  return undefined;
+}
+
 function loadGatewayConfig(): { port: number; authToken?: string } {
   try {
     const configPath = join(homedir(), ".openclaw", "openclaw.json");
@@ -207,12 +230,14 @@ export default definePluginEntry({
     }, { priority: 10 });
 
     // ── Slack App: dedicated OASIS bot ──
-    if (config.oasisBotToken && config.oasisAppToken) {
+    const botToken = resolveSecretRef(api.pluginConfig?.oasisBotToken ?? config.oasisBotToken);
+    const appToken = resolveSecretRef(api.pluginConfig?.oasisAppToken ?? config.oasisAppToken);
+    if (botToken && appToken) {
       import("./slack/approval-handler.js").then(({ createOasisSlackApp }) => {
         const gw = loadGatewayConfig();
         const slackApp = createOasisSlackApp({
-          botToken: config.oasisBotToken!,
-          appToken: config.oasisAppToken!,
+          botToken,
+          appToken,
           gatewayPort: gw.port,
           gatewayAuthToken: gw.authToken,
         });
