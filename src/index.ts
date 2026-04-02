@@ -40,7 +40,7 @@ export async function handleBeforeToolCall(
       return {
         requireApproval: {
           title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
-          description: " ",
+          description: `Risk Score: ${scanResult.score} / 1.0 | Detected: ${scanResult.reasons.join(", ")}`,
           severity: "warning",
           timeoutMs: config.approvalTimeoutMs,
           timeoutBehavior: "deny",
@@ -79,7 +79,7 @@ export async function handleBeforeToolCall(
     return {
       requireApproval: {
         title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
-        description: " ",
+        description: `Risk Score: ${scanResult.score} / 1.0 | Detected: ${scanResult.reasons.join(", ")}`,
         severity,
         timeoutMs: config.approvalTimeoutMs,
         timeoutBehavior: "deny",
