@@ -76,7 +76,7 @@ interface ResolvedBlocksParams {
 }
 
 export function buildResolvedBlocks(params: ResolvedBlocksParams): Block[] {
-  const emoji = params.decision === "deny" ? "❌" : "✅";
+  const emoji = params.decision === "deny" ? "🙅" : "✅";
   const label = params.decision === "deny" ? "Denied" : "Allowed";
   const who = params.resolvedBy ? ` by <@${params.resolvedBy}>` : "";
 

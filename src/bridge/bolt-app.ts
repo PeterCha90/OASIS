@@ -42,18 +42,24 @@ export function createBoltApp(params: BoltAppParams) {
 
     if (!ts || !channel) return;
 
-    // Delete "Plugin approval allowed/denied" followup messages
-    if (text.match(/Plugin approval (allowed|denied)/i) && msg.bot_id) {
-      try {
-        // Find the bot that posted it to delete it
+    // Delete "Plugin approval allowed/denied/expired" followup messages
+    if (text.match(/Plugin approval (allowed|denied|expired)/i)) {
+      console.log(`[OASIS Bridge] Deleting followup: "${text.slice(0, 50)}"`);
+      // Use the bot that posted the message to delete it
+      const msgBotId = msg.bot_id;
+      const cached = msgBotId ? botClientCache.get(msgBotId) : null;
+      if (cached) {
+        try { await cached.chat.delete({ channel, ts }); } catch {}
+      } else {
         for (const [, token] of params.allBotTokens) {
           try {
             const c = new WebClient(token);
             await c.chat.delete({ channel, ts });
+            console.log(`[OASIS Bridge] Followup deleted`);
             break;
           } catch { continue; }
         }
-      } catch {}
+      }
       return;
     }
 
