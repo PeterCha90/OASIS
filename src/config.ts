@@ -22,6 +22,8 @@ export const defaultConfig: OasisConfig = {
   safeDomains: [],
   customPatterns: [],
   logLevel: "info",
+  oasisBotToken: undefined,
+  oasisAppToken: undefined,
 };
 
 export function loadConfig(
@@ -41,5 +43,7 @@ export function loadConfig(
     safeDomains: pluginConfig.safeDomains ?? defaultConfig.safeDomains,
     customPatterns: pluginConfig.customPatterns ?? defaultConfig.customPatterns,
     logLevel: pluginConfig.logLevel ?? defaultConfig.logLevel,
+    oasisBotToken: pluginConfig.oasisBotToken ?? defaultConfig.oasisBotToken,
+    oasisAppToken: pluginConfig.oasisAppToken ?? defaultConfig.oasisAppToken,
   };
 }

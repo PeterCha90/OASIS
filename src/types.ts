@@ -28,6 +28,8 @@ export interface OasisConfig {
   safeDomains: string[];
   customPatterns: CustomPatternInput[];
   logLevel: "debug" | "info" | "warn" | "error";
+  oasisBotToken?: string;
+  oasisAppToken?: string;
 }
 
 /** Custom pattern as provided in config (regex as string) */
