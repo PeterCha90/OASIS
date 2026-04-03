@@ -39,7 +39,7 @@ Agent requests tool call
         │
         ▼
   ┌─────────────────┐
-  │ before_tool_call │ ◄── OASIS hook
+  │ before_tool_call│ ◄── OASIS hook
   └────────┬────────┘
            │
      Read tool? ─── Yes ──→ Pass through ✅
@@ -83,7 +83,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 #### Step 1: Create the App
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Click **Create New App**
+2. Click **Create New App**<br>
    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/1.png"/>
    → **From scratch** <br>
    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/2.png"/>
