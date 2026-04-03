@@ -21,7 +21,7 @@
 ---
 
 <p align="center">
-  <img src="docs/example.png" alt="OASIS Approval Example" width="800" />
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/docs/example.png" alt="OASIS Approval Example" width="800" />
 </p>
 
 ---
@@ -84,9 +84,9 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
 2. Click **Create New App**
-   <img src="public/1.png"/>
+   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/1.png"/>
    → **From scratch** <br>
-   <img src="public/2.png"/>
+   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/2.png"/>
 
 3. App Name: `OASIS`
 4. Pick your workspace → **Create App**
@@ -95,14 +95,14 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 
 1. Left sidebar → **Socket Mode**
 2. Toggle **Enable Socket Mode** to ON <br>
-   <img src="public/3.png"/>
+   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/3.png"/>
 
 3. You'll be prompted to create an App-Level Token:
    - Token Name: `oasis`
    - Scope: `connections:write` (auto-selected)
    - Click **Generate**
 
-    <img src="public/4.png"/>
+    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/4.png"/>
 
 4. Copy the token starting with `xapp-...` — this is your **App Token**
 
@@ -120,7 +120,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 | `channels:history` | Read approval messages to extract approval ID |
 | `channels:read` | Access channel info |
 
-  <img src="public/6.png"/>
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/6.png"/>
 
 #### Step 4: Subscribe to Events
 
@@ -134,7 +134,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 | `message.channels` | Detect approval messages from OpenClaw agents |
 | `reaction_added` | Detect user's Allow (✅) or Deny (🙅) reaction |
 
-    <img src="public/8.png"/>
+    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/8.png"/>
 
 5. Click **Save Changes**
 
@@ -142,7 +142,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 
 1. Left sidebar → **Install App**
 2. Click **Install to Workspace** → **Allow**
-   <img src="public/9.png"/>
+   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/9.png"/>
 
 3. Copy the **Bot User OAuth Token** starting with `xoxb-...` — this is your **Bot Token**
 
