@@ -226,7 +226,25 @@ Restart the gateway and OASIS will automatically connect:
 openclaw gateway restart
 ```
 
-> When a tool call requires approval, OASIS posts Allow / Deny buttons in Slack.
+> When a tool call requires approval, OASIS posts Allow / Deny / Allow Always buttons in Slack.
+
+---
+
+## Allow Always
+
+For repetitive commands like CronJobs or Slack Webhooks, you can skip repeated approvals by clicking **🔁 Allow Always**. This permanently allows the exact `tool + command/URL` combination.
+
+- Click **🔁 Allow Always** on an approval request → the specific command is added to the allowlist
+- Future identical calls are auto-approved without prompts
+- The allowlist is persisted to disk and survives Gateway restarts
+
+### Managing the Allowlist
+
+**DM the OASIS bot with `list`** to view, remove individual entries, or clear the entire allowlist:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/11.png" alt="OASIS Allowlist Management" width="800" />
+</p>
 
 ---
 

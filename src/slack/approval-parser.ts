@@ -18,6 +18,7 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
   const riskMatch = text.match(/\[([\d.]+)\]/) ?? text.match(/Risk Score:\s*\*?\*?\s*[`]?([\d.]+)/);
   const detectedMatch = text.match(/Detected:\s*\*?\*?\s*([^|\n]+)/);
   let parameters = "";
+  // 1. Try Parameters: block (legacy format)
   const paramStart = text.indexOf("Parameters:");
   if (paramStart !== -1) {
     const afterParam = text.slice(paramStart + "Parameters:".length);
@@ -26,6 +27,19 @@ export function parseApprovalMessage(text: string): ParsedApproval | null {
     else { const jsonMatch = afterParam.match(/\{[\s\S]*?\}/); if (jsonMatch) parameters = jsonMatch[0].trim(); }
   }
   if (!parameters) { const cp = text.match(/params:(\{[^}]+\})/); if (cp) parameters = cp[1]; }
+  // 2. Try Command:/File:/URL: from description (new format from formatDescription)
+  if (!parameters) {
+    const cmdMatch = text.match(/^Command:\s*(.+)$/m);
+    if (cmdMatch) parameters = JSON.stringify({ command: cmdMatch[1].trim() });
+  }
+  if (!parameters) {
+    const fileMatch = text.match(/^File:\s*(.+)$/m);
+    if (fileMatch) parameters = JSON.stringify({ file_path: fileMatch[1].trim() });
+  }
+  if (!parameters) {
+    const urlMatch = text.match(/^URL:\s*(.+)$/m);
+    if (urlMatch) parameters = JSON.stringify({ url: urlMatch[1].trim() });
+  }
   return {
     approvalId: idMatch[1],
     title: titleMatch?.[1]?.trim() ?? "Approval Required",

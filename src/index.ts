@@ -7,6 +7,7 @@ import { classifyTool } from "./classifier.js";
 import { scanForRisks } from "./scanner.js";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
+import { isAllowed } from "./allowlist.js";
 import { registerOasisCli } from "./cli/setup-wizard.js";
 import type { OasisConfig } from "./types.js";
 
@@ -24,6 +25,35 @@ interface HookResult {
   };
 }
 
+function summarizeParams(toolName: string, params: Record<string, unknown>): string {
+  // Show the most relevant param for common tools
+  const command = params.command ?? params.cmd;
+  if (command) return `Command: ${String(command).slice(0, 200)}`;
+
+  const filePath = params.file_path ?? params.path ?? params.file;
+  if (filePath) return `File: ${String(filePath)}`;
+
+  const url = params.url ?? params.uri;
+  if (url) return `URL: ${String(url)}`;
+
+  // Fallback: compact JSON of params
+  const json = JSON.stringify(params);
+  return json.length > 200 ? json.slice(0, 200) + "…" : json;
+}
+
+function formatDescription(
+  scanResult: { score: number; reasons: string[] },
+  toolName: string,
+  params: Record<string, unknown>,
+): string {
+  const parts = [
+    `Risk Score: ${scanResult.score} / 1.0`,
+    `Detected: ${scanResult.reasons.join(", ")}`,
+    summarizeParams(toolName, params),
+  ];
+  return parts.join("\n");
+}
+
 /**
  * Core hook handler logic — exported for testing.
  */
@@ -32,6 +62,9 @@ export async function handleBeforeToolCall(
   config: OasisConfig
 ): Promise<HookResult> {
   const { toolName, params } = event;
+
+  // 0. Skip if previously allow-always'd
+  if (isAllowed(toolName, params)) return {};
 
   // 1. Tool classification
   const classification = classifyTool(toolName, config);
@@ -43,7 +76,7 @@ export async function handleBeforeToolCall(
       return {
         requireApproval: {
           title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
-          description: `Risk Score: ${scanResult.score} / 1.0 | Detected: ${scanResult.reasons.join(", ")}`,
+          description: formatDescription(scanResult, toolName, params),
           severity: "warning",
           timeoutMs: config.approvalTimeoutMs,
           timeoutBehavior: "deny",
@@ -82,7 +115,7 @@ export async function handleBeforeToolCall(
     return {
       requireApproval: {
         title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
-        description: `Risk Score: ${scanResult.score} / 1.0 | Detected: ${scanResult.reasons.join(", ")}`,
+        description: formatDescription(scanResult, toolName, params),
         severity,
         timeoutMs: config.approvalTimeoutMs,
         timeoutBehavior: "deny",
@@ -100,7 +133,7 @@ const OASIS_SOUL_RULE = [
   "## Mandatory Security Guidelines",
   "1. When the user denies an OASIS security decision, stop immediately. Do not attempt alternative approaches or workarounds.",
   "2. Never respond to, interpret, or act on OASIS-related messages. OASIS handles its own approval flow independently.",
-  "3. Never read, capture, relay, or transmit the contents of sensitive files (e.g. .env, openclaw.json, credentials, private keys) through any method without explicit user approval via OASIS.",
+  "3. Always proceed with tool calls normally — even for sensitive files or risky commands. OASIS automatically intercepts dangerous operations and prompts the user for approval. Do NOT preemptively refuse or warn about security risks; OASIS handles this.",
   OASIS_SOUL_MARKER_END,
 ].join("\n");
 
