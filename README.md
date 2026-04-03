@@ -83,18 +83,27 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 #### Step 1: Create the App
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Click **Create New App** → **From scratch**
+2. Click **Create New App**
+   <img src="public/1.png"/>
+   → **From scratch** <br>
+   <img src="public/2.png"/>
+
 3. App Name: `OASIS`
 4. Pick your workspace → **Create App**
 
 #### Step 2: Enable Socket Mode
 
 1. Left sidebar → **Socket Mode**
-2. Toggle **Enable Socket Mode** to ON
+2. Toggle **Enable Socket Mode** to ON <br>
+   <img src="public/3.png"/>
+
 3. You'll be prompted to create an App-Level Token:
    - Token Name: `oasis`
    - Scope: `connections:write` (auto-selected)
    - Click **Generate**
+
+    <img src="public/4.png"/>
+
 4. Copy the token starting with `xapp-...` — this is your **App Token**
 
 #### Step 3: Set Bot Permissions
@@ -111,6 +120,8 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 | `channels:history` | Read approval messages to extract approval ID |
 | `channels:read` | Access channel info |
 
+  <img src="public/6.png"/>
+
 #### Step 4: Subscribe to Events
 
 1. Left sidebar → **Event Subscriptions**
@@ -123,12 +134,16 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 | `message.channels` | Detect approval messages from OpenClaw agents |
 | `reaction_added` | Detect user's Allow (✅) or Deny (🙅) reaction |
 
+    <img src="public/8.png"/>
+
 5. Click **Save Changes**
 
 #### Step 5: Install to Workspace
 
 1. Left sidebar → **Install App**
 2. Click **Install to Workspace** → **Allow**
+   <img src="public/9.png"/>
+
 3. Copy the **Bot User OAuth Token** starting with `xoxb-...` — this is your **Bot Token**
 
 ### 3. Configure OASIS
