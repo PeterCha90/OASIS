@@ -21,7 +21,7 @@
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/docs/example.png" alt="OASIS Approval Example" width="800" />
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/example1.png" alt="OASIS Approval Example" width="800" />
 </p>
 
 ---
