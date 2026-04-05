@@ -20,6 +20,7 @@ export function createOasisSlackApp(config: SlackAppConfig) {
 
   const processedMessages = new Set<string>();
   const resolvedApprovals = new Set<string>();
+  const expiryTimers = new Map<string, ReturnType<typeof setTimeout>>(); // approvalId -> timer
 
   // Detect approval messages → post Block Kit buttons
   app.event("message", async ({ event, client }) => {
@@ -58,8 +59,12 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     const allowlistKey = makeKeyFromParsed(parsed.toolName, parsed.parameters);
     const allowAlwaysValue = JSON.stringify({ id: parsed.approvalId, key: allowlistKey });
 
+    // Parse timeout from original message (e.g. "Expires in: 120s")
+    const expiresMatch = text.match(/Expires in:\s*(\d+)s/);
+    const timeoutMs = expiresMatch ? parseInt(expiresMatch[1], 10) * 1000 : 120_000;
+
     try {
-      await client.chat.postMessage({
+      const result = await client.chat.postMessage({
         channel,
         thread_ts: ts,
         text: `🏝️ OASIS: ${parsed.detected || "Security Review"}`,
@@ -105,6 +110,28 @@ export function createOasisSlackApp(config: SlackAppConfig) {
         ] as any,
       });
       console.log(`[OASIS] Approval buttons posted: ${parsed.approvalId.slice(0, 12)}`);
+
+      // Set expiry timer — update buttons to "Expired" after timeout
+      const postedTs = result.ts;
+      if (postedTs) {
+        const timer = setTimeout(async () => {
+          if (resolvedApprovals.has(parsed.approvalId)) return;
+          resolvedApprovals.add(parsed.approvalId);
+          try {
+            await client.chat.update({
+              channel,
+              ts: postedTs,
+              text: `⏰ OASIS: Expired`,
+              blocks: [{
+                type: "section",
+                text: { type: "mrkdwn", text: `⏰ *OASIS: Expired* — approval timed out` },
+              }] as any,
+            });
+          } catch {}
+          expiryTimers.delete(parsed.approvalId);
+        }, timeoutMs);
+        expiryTimers.set(parsed.approvalId, timer);
+      }
     } catch (err) {
       console.error(`[OASIS] Failed to post buttons: ${err}`);
       processedMessages.delete(ts);
@@ -117,12 +144,19 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     }
   });
 
+  // Cancel expiry timer on resolution
+  function clearExpiryTimer(approvalId: string) {
+    const timer = expiryTimers.get(approvalId);
+    if (timer) { clearTimeout(timer); expiryTimers.delete(approvalId); }
+  }
+
   // Handle Allow button
   app.action("oasis_allow", async ({ ack, body, client }) => {
     await ack();
     const approvalId = (body as any).actions?.[0]?.value;
     if (!approvalId || resolvedApprovals.has(approvalId)) return;
     resolvedApprovals.add(approvalId);
+    clearExpiryTimer(approvalId);
 
     const userId = body.user.id;
     const channel = (body as any).channel?.id;
@@ -169,6 +203,7 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     }
     if (!approvalId || resolvedApprovals.has(approvalId)) return;
     resolvedApprovals.add(approvalId);
+    clearExpiryTimer(approvalId);
 
     const userId = body.user.id;
     const channel = (body as any).channel?.id;
@@ -212,6 +247,7 @@ export function createOasisSlackApp(config: SlackAppConfig) {
     const approvalId = (body as any).actions?.[0]?.value;
     if (!approvalId || resolvedApprovals.has(approvalId)) return;
     resolvedApprovals.add(approvalId);
+    clearExpiryTimer(approvalId);
 
     const userId = body.user.id;
     const channel = (body as any).channel?.id;

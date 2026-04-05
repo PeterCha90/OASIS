@@ -13,7 +13,7 @@ const DEFAULT_EXECUTE_TOOLS = [
 ];
 
 export const defaultConfig: OasisConfig = {
-  threshold: 0.3,
+  threshold: 0.5,
   approvalTimeoutMs: 120_000,
   readTools: DEFAULT_READ_TOOLS,
   executeTools: DEFAULT_EXECUTE_TOOLS,

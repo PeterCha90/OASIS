@@ -160,7 +160,7 @@ Add both tokens to your OpenClaw plugin config. You can use direct strings or Se
       "oasis": {
         "enabled": true,
         "config": {
-          "threshold": 0.3,
+          "threshold": 0.5,
           "oasisBotToken": "xoxb-your-bot-token-here",
           "oasisAppToken": "xapp-your-app-token-here"
         }
@@ -185,7 +185,7 @@ Add both tokens to your OpenClaw plugin config. You can use direct strings or Se
       "oasis": {
         "enabled": true,
         "config": {
-          "threshold": 0.3,
+          "threshold": 0.5,
           "oasisBotToken": {
             "source": "env",
             "provider": "default",
@@ -295,7 +295,7 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 
 | Option               | Type       | Default  | Description                                         |
 | -------------------- | ---------- | -------- | --------------------------------------------------- |
-| `threshold`          | `number`   | `0.3`    | Risk threshold (0.0 strictest ~ 0.9 most lenient)   |
+| `threshold`          | `number`   | `0.5`    | Risk threshold (0.0 strictest ~ 0.9 most lenient)   |
 | `approvalTimeoutMs`  | `number`   | `120000` | Approval timeout in ms (auto-deny on timeout)       |
 | `safeDomains`        | `string[]` | `[]`     | Additional safe domains (skip EXTERNAL_URL scoring) |
 | `customPatterns`     | `object[]` | `[]`     | Custom detection patterns (`{id, regex, score}`)    |

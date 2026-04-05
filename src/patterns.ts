@@ -56,7 +56,7 @@ export const RISK_PATTERNS: DetectionPattern[] = [
   {
     id: "SENSITIVE_FILE",
     regex:
-      /\.env\b|\.ssh\/|id_rsa|\.aws\/credentials|\/etc\/shadow|\/etc\/passwd|\.pem\b|\.key\b/i,
+      /\.env(\.[a-z0-9]+)*|\.ssh\/|id_rsa|\.aws\/credentials|\/etc\/shadow|\/etc\/passwd|\.pem\b|\.key\b|oasis-allowlist\.json/i,
     score: 0.6,
     description: "Sensitive file access",
     severity: "warning",
