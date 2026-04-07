@@ -1,0 +1,14 @@
+.DS_Store
+.gitignore
+.git
+.github
+src
+tests
+docs
+*.ts
+!*.d.ts
+tsconfig*.json
+vitest.config.ts
+node_modules
+.claude
+CLAUDE.md
