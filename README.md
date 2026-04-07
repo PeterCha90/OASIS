@@ -138,7 +138,14 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 
 5. Click **Save Changes**
 
-#### Step 5: Install to Workspace
+#### Step 5: Messages Tab (On)
+
+1. Left sidebar → **App Home**
+2. Enable **Messages Tab** under **Show Tabs**
+
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/10.png"/>
+
+#### Step 6: Install to Workspace
 
 1. Left sidebar → **Install App**
 2. Click **Install to Workspace** → **Allow**
