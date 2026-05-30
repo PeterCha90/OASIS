@@ -80,78 +80,24 @@ openclaw gateway restart
 
 A dedicated Slack app is **required** for OASIS to work. It handles approval buttons and user interactions.
 
-#### Step 1: Create the App
+#### Step 1: Create the App from Manifest
 
-1. Go to [api.slack.com/apps](https://api.slack.com/apps)
-2. Click **Create New App**<br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/1.png"/>
-   → **From scratch** <br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/2.png"/>
+1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From an app manifest**
+2. Pick your workspace
+3. Paste the contents of [`slack-app-manifest.yaml`](./slack-app-manifest.yaml) (YAML tab) and click **Next** → **Create**
 
-3. App Name: `OASIS`
-4. Pick your workspace → **Create App**
+> The manifest pre-configures everything: bot scopes, event subscriptions, Socket Mode, interactivity, and the Messages tab. No manual clicking required.
 
-#### Step 2: Enable Socket Mode
+#### Step 2: Generate App-Level Token
 
-1. Left sidebar → **Socket Mode**
-2. Toggle **Enable Socket Mode** to ON <br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/3.png"/>
+1. Left sidebar → **Basic Information** → **App-Level Tokens** → **Generate Token and Scopes**
+2. Token Name: `oasis`, Scope: `connections:write` → **Generate**
+3. Copy the `xapp-...` token — this is your **App Token**
 
-3. You'll be prompted to create an App-Level Token:
-   - Token Name: `oasis`
-   - Scope: `connections:write` (auto-selected)
-   - Click **Generate**
+#### Step 3: Install to Workspace
 
-<img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/4.png"/>
-
-4. Copy the token starting with `xapp-...` — this is your **App Token**
-
-#### Step 3: Set Bot Permissions
-
-1. Left sidebar → **OAuth & Permissions**
-2. Scroll to **Scopes** → **Bot Token Scopes**
-3. Click **Add an OAuth Scope** and add these 5 scopes:
-
-| Scope | Purpose |
-|-------|---------|
-| `chat:write` | Post approval summaries and results |
-| `reactions:read` | Detect when users react ✅ or 🙅 |
-| `reactions:write` | Add ✅ 🙅 reaction hints to approval messages |
-| `channels:history` | Read approval messages to extract approval ID |
-| `channels:read` | Access channel info |
-
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/6.png"/>
-
-#### Step 4: Subscribe to Events
-
-1. Left sidebar → **Event Subscriptions**
-2. Toggle **Enable Events** to ON
-3. Scroll to **Subscribe to bot events** → **Add Bot User Event**
-4. Add these 2 events:
-
-| Event | Purpose |
-|-------|---------|
-| `message.channels` | Detect approval messages from OpenClaw agents |
-| `reaction_added` | Detect user's Allow (✅) or Deny (🙅) reaction |
-
-<img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/8.png"/>
-
-5. Click **Save Changes**
-
-#### Step 5: Messages Tab (On)
-
-1. Left sidebar → **App Home**
-2. Enable **Messages Tab** under **Show Tabs**
-
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/10.png"/>
-
-#### Step 6: Install to Workspace
-
-1. Left sidebar → **Install App**
-2. Click **Install to Workspace** → **Allow**
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/9.png"/>
-
-3. Copy the **Bot User OAuth Token** starting with `xoxb-...` — this is your **Bot Token**
+1. Left sidebar → **Install App** → **Install to Workspace** → **Allow**
+2. Copy the `xoxb-...` **Bot User OAuth Token** — this is your **Bot Token**
 
 ### 3. Configure OASIS
 

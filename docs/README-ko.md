@@ -79,79 +79,24 @@ openclaw gateway restart
 
 OASIS를 사용하려면 전용 Slack 앱이 **필수**입니다. 승인 버튼과 사용자 인터랙션을 처리합니다.
 
-전용 Slack 앱을 생성합니다:
+#### Step 1: Manifest로 앱 생성
 
-#### Step 1: 앱 생성
+1. [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From an app manifest**
+2. 워크스페이스 선택
+3. [`slack-app-manifest.yaml`](../slack-app-manifest.yaml) 내용 복사 → YAML 탭에 붙여넣기 → **Next** → **Create**
 
-1. [api.slack.com/apps](https://api.slack.com/apps) 접속
-2. **Create New App** <br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/1.png"/>
+> Manifest가 봇 권한, 이벤트 구독, Socket Mode, Interactivity, Messages Tab을 모두 자동 설정합니다. 수동 클릭 불필요.
 
-   → **From scratch** <br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/2.png"/>
+#### Step 2: App-Level Token 발급
 
-3. App Name: `OASIS`
-4. 워크스페이스 선택 → **Create App**
+1. 좌측 메뉴 → **Basic Information** → **App-Level Tokens** → **Generate Token and Scopes**
+2. Token Name: `oasis`, Scope: `connections:write` → **Generate**
+3. `xapp-...` 토큰 복사 — 이것이 **App Token**
 
-#### Step 2: Socket Mode 활성화
+#### Step 3: 워크스페이스에 설치
 
-1. 좌측 메뉴 → **Socket Mode**
-2. **Enable Socket Mode** 토글 ON <br>
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/3.png"/>
-
-3. App-Level Token 생성 팝업:
-   - Token Name: `oasis`
-   - Scope: `connections:write` (자동 선택)
-   - **Generate** 클릭
-
-    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/4.png"/>
-
-4. `xapp-...`로 시작하는 토큰 복사 — 이것이 **App Token**
-
-#### Step 3: 봇 권한 설정
-
-1. 좌측 메뉴 → **OAuth & Permissions**
-2. **Scopes** → **Bot Token Scopes** 에서 아래 5개 추가:
-
-| Scope              | 용도                                 |
-| ------------------ | ------------------------------------ |
-| `chat:write`       | 승인 요약 및 결과 메시지 게시        |
-| `reactions:read`   | 사용자의 ✅ 🙅 리액션 감지           |
-| `reactions:write`  | 승인 메시지에 ✅ 🙅 리액션 힌트 추가 |
-| `channels:history` | 승인 메시지에서 approval ID 추출     |
-| `channels:read`    | 채널 정보 접근                       |
-
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/6.png"/>
-
-#### Step 4: 이벤트 구독
-
-1. 좌측 메뉴 → **Event Subscriptions**
-2. **Enable Events** 토글 ON
-3. **Subscribe to bot events** → **Add Bot User Event** 에서 2개 추가:
-
-| Event              | 용도                                      |
-| ------------------ | ----------------------------------------- |
-| `message.channels` | OpenClaw 에이전트의 승인 메시지 감지      |
-| `reaction_added`   | 사용자의 Allow(✅) / Deny(🙅) 리액션 감지 |
-
-    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/8.png"/>
-
-4. **우하단 `Save Changes`** 클릭
-
-#### Step 5: Messages Tab (On)
-
-1. 좌측 메뉴 → **App Home**
-2. **Show Tabs** 아래 Messages Tab 활성화
-
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/10.png"/>
-
-#### Step 6: 워크스페이스에 설치
-
-1. 좌측 메뉴 → **Install App**
-2. **Install to Workspace** → **Allow**
-   <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/9.png"/>
-
-3. `xoxb-...`로 시작하는 **Bot User OAuth Token** 복사 — 이것이 **Bot Token**
+1. 좌측 메뉴 → **Install App** → **Install to Workspace** → **Allow**
+2. `xoxb-...`로 시작하는 **Bot User OAuth Token** 복사 — 이것이 **Bot Token**
 
 ### 3. OASIS 설정
 
