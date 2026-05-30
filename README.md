@@ -21,7 +21,7 @@
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/example1.png" alt="OASIS Approval Example" width="800" />
+  <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/example1.png" alt="OASIS Approval Example" width="550" />
 </p>
 
 ---
@@ -102,7 +102,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
    - Scope: `connections:write` (auto-selected)
    - Click **Generate**
 
-    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/4.png"/>
+<img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/4.png"/>
 
 4. Copy the token starting with `xapp-...` — this is your **App Token**
 
@@ -134,7 +134,7 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 | `message.channels` | Detect approval messages from OpenClaw agents |
 | `reaction_added` | Detect user's Allow (✅) or Deny (🙅) reaction |
 
-    <img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/8.png"/>
+<img src="https://raw.githubusercontent.com/PeterCha90/oasis/main/public/8.png"/>
 
 5. Click **Save Changes**
 
