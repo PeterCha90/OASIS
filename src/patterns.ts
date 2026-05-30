@@ -33,9 +33,17 @@ export const RISK_PATTERNS: DetectionPattern[] = [
   {
     id: "SECRET_ACCESS",
     regex:
-      /\$AWS_SECRET|\$API_KEY|\$DB_PASSWORD|process\.env\.(SECRET|PASSWORD|KEY|TOKEN)/i,
+      /\$\{?[A-Z0-9_]*(?:SECRET|PASSWORD|PASSWD|TOKEN|API_?KEY|ACCESS_?KEY|CREDENTIAL|CRED|PRIVATE_KEY|WEBHOOK|BEARER)[A-Z0-9_]*\}?\b|process\.env\.[A-Z_]*(?:SECRET|PASSWORD|PASSWD|KEY|TOKEN|CREDENTIAL|AUTH|PRIVATE|WEBHOOK|API)[A-Z_]*/i,
     score: 0.8,
     description: "Secret/credential access",
+    severity: "warning",
+  },
+  {
+    id: "ENV_DUMP",
+    regex:
+      /\bprintenv\b|(?:^|[\s;|&])env\s*(?:\||$|>|;)|cat\s+\/proc\/[^\s]*\/environ|\bexport\s+-p\b/i,
+    score: 0.6,
+    description: "Environment variable dump",
     severity: "warning",
   },
   {
@@ -56,7 +64,7 @@ export const RISK_PATTERNS: DetectionPattern[] = [
   {
     id: "SENSITIVE_FILE",
     regex:
-      /\.env(\.[a-z0-9]+)*|\.ssh\/|id_rsa|\.aws\/credentials|\/etc\/shadow|\/etc\/passwd|\.pem\b|\.key\b|oasis-allowlist\.json/i,
+      /\.env(\.[a-z0-9]+)*|\.ssh\/|id_rsa|\.aws\/credentials|\/etc\/shadow|\/etc\/passwd|\.pem\b|\.key\b|oasis-allowlist\.json|\/proc\/[^\s/]+\/environ/i,
     score: 0.6,
     description: "Sensitive file access",
     severity: "warning",

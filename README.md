@@ -268,10 +268,11 @@ All scoring is **deterministic pattern matching**. No LLM involved.
 | `BLOCK_DESTRUCTIVE`    | `rm -rf /`, fork bomb, `mkfs`, `dd if=/dev/zero` | **1.0** | 🚨 Blocked   |
 | `BLOCK_PIPE_SHELL`     | `curl \| bash`, `wget \| sh`                     | **1.0** | 🚨 Blocked   |
 | `PROMPT_INJECTION`     | `ignore previous instructions`, `you are now`    | 0.9     | Ask approval |
-| `SECRET_ACCESS`        | `$AWS_SECRET`, `process.env.TOKEN`               | 0.8     | Ask approval |
+| `SECRET_ACCESS`        | `$AWS_SECRET`, `$SLACK_WEBHOOK`, `process.env.TOKEN` | 0.8 | Ask approval |
 | `SUSPICIOUS_DOMAIN`    | `.xyz`, `.tk`, `.ml`, `.pw`, `.top`              | 0.8     | Ask approval |
 | `DATA_EXFILTRATION`    | `curl -X POST`, `nc -e`, reverse shell           | 0.7     | Ask approval |
-| `SENSITIVE_FILE`       | `.env`, `.ssh/id_rsa`, `.aws/credentials`        | 0.6     | Ask approval |
+| `ENV_DUMP`             | `printenv`, `env \| grep`, `export -p`, `/proc/*/environ` | 0.6 | Ask approval |
+| `SENSITIVE_FILE`       | `.env`, `.ssh/id_rsa`, `.aws/credentials`, `/proc/*/environ` | 0.6 | Ask approval |
 | `PRIVILEGE_ESCALATION` | `sudo`, `chmod 777`, `chown root`                | 0.5     | Ask approval |
 | `EXTERNAL_URL`         | Non-safe-domain HTTP access                      | 0.3     | Ask approval |
 

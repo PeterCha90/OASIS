@@ -68,12 +68,47 @@ describe("Detection Patterns", () => {
       expect(pattern!.regex.test("process.env.SECRET")).toBe(true);
     });
 
+    test("SECRET_ACCESS should match expanded env var patterns", () => {
+      const pattern = RISK_PATTERNS.find((p) => p.id === "SECRET_ACCESS");
+      expect(pattern!.regex.test("echo $SLACK_WEBHOOK")).toBe(true);
+      expect(pattern!.regex.test("echo $SLACK_BOT_TOKEN")).toBe(true);
+      expect(pattern!.regex.test("echo $GITHUB_TOKEN")).toBe(true);
+      expect(pattern!.regex.test("echo $BEARER_TOKEN")).toBe(true);
+      expect(pattern!.regex.test("process.env.AWS_ACCESS_KEY_ID")).toBe(true);
+      expect(pattern!.regex.test("process.env.MY_API_KEY")).toBe(true);
+      // Non-secret env vars should not match
+      expect(pattern!.regex.test("echo $HOME")).toBe(false);
+      expect(pattern!.regex.test("echo $PATH")).toBe(false);
+      expect(pattern!.regex.test("process.env.HOME")).toBe(false);
+    });
+
+    test("ENV_DUMP should match env dump commands", () => {
+      const pattern = RISK_PATTERNS.find((p) => p.id === "ENV_DUMP");
+      expect(pattern).toBeDefined();
+      expect(pattern!.score).toBe(0.6);
+      expect(pattern!.regex.test("printenv")).toBe(true);
+      expect(pattern!.regex.test("printenv | grep SECRET")).toBe(true);
+      expect(pattern!.regex.test("env")).toBe(true);
+      expect(pattern!.regex.test("env | grep AWS")).toBe(true);
+      expect(pattern!.regex.test("env > /tmp/dump.txt")).toBe(true);
+      expect(pattern!.regex.test("export -p")).toBe(true);
+      expect(pattern!.regex.test("cat /proc/self/environ")).toBe(true);
+      // env-as-prefix should NOT match (env VAR=x cmd)
+      expect(pattern!.regex.test("env NODE_ENV=prod node app.js")).toBe(false);
+    });
+
     test("SENSITIVE_FILE should match key files", () => {
       const pattern = RISK_PATTERNS.find((p) => p.id === "SENSITIVE_FILE");
       expect(pattern).toBeDefined();
       expect(pattern!.score).toBe(0.6);
       expect(pattern!.regex.test("cat .env")).toBe(true);
       expect(pattern!.regex.test("cat ~/.ssh/id_rsa")).toBe(true);
+    });
+
+    test("SENSITIVE_FILE should match /proc/*/environ", () => {
+      const pattern = RISK_PATTERNS.find((p) => p.id === "SENSITIVE_FILE");
+      expect(pattern!.regex.test("/proc/self/environ")).toBe(true);
+      expect(pattern!.regex.test("/proc/1234/environ")).toBe(true);
     });
 
     test("PRIVILEGE_ESCALATION should match sudo", () => {
