@@ -84,7 +84,45 @@ A dedicated Slack app is **required** for OASIS to work. It handles approval but
 
 1. Go to [api.slack.com/apps](https://api.slack.com/apps) → **Create New App** → **From an app manifest**
 2. Pick your workspace
-3. Paste the contents of [`slack-app-manifest.yaml`](./slack-app-manifest.yaml) (YAML tab) and click **Next** → **Create**
+3. Paste the manifest below (YAML tab) and click **Next** → **Create**
+
+<details>
+<summary>📋 Click to copy manifest</summary>
+
+```yaml
+display_information:
+  name: OASIS
+  description: OpenClaw Antidote for Suspicious Injection Signals
+  background_color: "#4A154B"
+features:
+  bot_user:
+    display_name: OASIS
+    always_online: true
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - reactions:read
+      - reactions:write
+      - channels:history
+      - channels:read
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.channels
+      - reaction_added
+  interactivity:
+    is_enabled: true
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false
+```
+
+</details>
 
 > The manifest pre-configures everything: bot scopes, event subscriptions, Socket Mode, interactivity, and the Messages tab. No manual clicking required.
 
