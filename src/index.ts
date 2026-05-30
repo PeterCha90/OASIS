@@ -237,6 +237,20 @@ export default definePluginEntry({
   register(api: OpenClawPluginApi) {
     const config = loadConfig(api.pluginConfig as Partial<OasisConfig>);
     const logger = createLogger(config, api.logger);
+    let activeSlackApp: any;
+
+    const shutdown = async () => {
+      if (activeSlackApp) {
+        logger.info("[OASIS] Stopping Slack app...");
+        try {
+          await activeSlackApp.stop();
+          activeSlackApp = undefined;
+          logger.info("[OASIS] Slack app stopped");
+        } catch (err) {
+          logger.warn(`[OASIS] Failed to stop Slack app: ${err}`);
+        }
+      }
+    };
 
     logger.info(`[OASIS] Loaded with threshold=${config.threshold}`);
 
@@ -245,6 +259,14 @@ export default definePluginEntry({
 
     // ── CLI: setup wizard ──
     registerOasisCli(api, config);
+
+    // ── Lifecycle Hooks ──
+    api.on("session_end", async () => { await shutdown(); });
+    api.on("gateway_stop", async () => { await shutdown(); });
+
+    // Safety net for process signals
+    process.on("SIGINT", () => { shutdown().finally(() => process.exit(0)); });
+    process.on("SIGTERM", () => { shutdown().finally(() => process.exit(0)); });
 
     // ── Core Hook: before_tool_call ──
     api.on("before_tool_call", async (event, _ctx) => {
@@ -268,13 +290,13 @@ export default definePluginEntry({
     if (botToken && appToken) {
       import("./slack/approval-handler.js").then(({ createOasisSlackApp }) => {
         const gw = loadGatewayConfig();
-        const slackApp = createOasisSlackApp({
+        activeSlackApp = createOasisSlackApp({
           botToken,
           appToken,
           gatewayPort: gw.port,
           gatewayAuthToken: gw.authToken,
         });
-        slackApp.start().then(() => {
+        activeSlackApp.start().then(() => {
           logger.info("[OASIS] Slack app connected");
         }).catch((err: unknown) => {
           logger.warn(`[OASIS] Slack app failed: ${err}`);
