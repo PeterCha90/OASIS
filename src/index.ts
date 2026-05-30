@@ -186,20 +186,45 @@ function injectSoulRules() {
  * Resolve a config value that may be a string or a SecretRef object.
  * SecretRef: { source: "env", provider: "default", id: "ENV_VAR_NAME" }
  */
-function resolveSecretRef(value: unknown): string | undefined {
+/**
+ * Normalize a secret-ref id to a bare env-var key.
+ * openclaw (>=2026.5) may store the id wrapped in its `${VAR}` interpolation
+ * syntax (e.g. "${OASIS_BOT_TOKEN}"); strip the wrapper so it matches the
+ * bare key in ~/.openclaw/.env. Without this the env lookup never matches and
+ * the OASIS Slack app silently fails to start.
+ */
+export function normalizeEnvKey(id: string): string {
+  return String(id).replace(/^\$\{(.+)\}$/, "$1").trim();
+}
+
+/** Build a `^KEY=value$` matcher for a .env file, escaping regex metachars in KEY. */
+function envLineRegex(key: string): RegExp {
+  const esc = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${esc}=(.+)$`, "m");
+}
+
+export function resolveSecretRef(value: unknown): string | undefined {
   if (typeof value === "string") return value || undefined;
   if (value && typeof value === "object" && "id" in value) {
     const ref = value as { source?: string; id: string };
     if (ref.source === "env") {
-      // Read from ~/.openclaw/.env
+      const key = normalizeEnvKey(ref.id);
+      if (!key) return undefined;
+      // 1. Look up the key in ~/.openclaw/.env
       const envPath = join(homedir(), ".openclaw", ".env");
       if (existsSync(envPath)) {
         const content = readFileSync(envPath, "utf-8");
-        const match = content.match(new RegExp(`^${ref.id}=(.+)$`, "m"));
-        return match?.[1]?.trim();
+        const match = content.match(envLineRegex(key));
+        if (match?.[1]) return match[1].trim();
       }
-      // Fallback to process.env
-      return process.env[ref.id];
+      // 2. Fallback to process.env
+      if (process.env[key]) return process.env[key];
+      // 3. openclaw >=2026.5 interpolates ${VAR} placeholders inside plugin
+      //    config itself, so the SecretRef id may ALREADY be the resolved
+      //    secret value rather than an env-var name. If it could not be found
+      //    as a key and does not look like an UPPER_SNAKE_CASE env-var name,
+      //    treat the id as the literal resolved value.
+      if (!/^[A-Z_][A-Z0-9_]*$/.test(key)) return key;
     }
   }
   return undefined;
@@ -214,8 +239,8 @@ function loadGatewayConfig(): { port: number; authToken?: string } {
     let authToken: string | undefined;
     if (config.gateway?.auth?.mode === "token" && config.gateway?.auth?.token?.id) {
       const envContent = existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
-      const tokenKey = config.gateway.auth.token.id;
-      const match = envContent.match(new RegExp(`^${tokenKey}=(.+)$`, "m"));
+      const tokenKey = normalizeEnvKey(config.gateway.auth.token.id);
+      const match = envContent.match(envLineRegex(tokenKey));
       authToken = match?.[1]?.trim();
     }
     return { port, authToken };
@@ -285,8 +310,10 @@ export default definePluginEntry({
     }, { priority: 10 });
 
     // ── Slack App: dedicated OASIS bot ──
-    const botToken = resolveSecretRef(api.pluginConfig?.oasisBotToken ?? config.oasisBotToken);
-    const appToken = resolveSecretRef(api.pluginConfig?.oasisAppToken ?? config.oasisAppToken);
+    const botRef = api.pluginConfig?.oasisBotToken ?? config.oasisBotToken;
+    const appRef = api.pluginConfig?.oasisAppToken ?? config.oasisAppToken;
+    const botToken = resolveSecretRef(botRef);
+    const appToken = resolveSecretRef(appRef);
     if (botToken && appToken) {
       import("./slack/approval-handler.js").then(({ createOasisSlackApp }) => {
         const gw = loadGatewayConfig();
@@ -301,7 +328,25 @@ export default definePluginEntry({
         }).catch((err: unknown) => {
           logger.warn(`[OASIS] Slack app failed: ${err}`);
         });
+      }).catch((err: unknown) => {
+        logger.warn(`[OASIS] Slack app module load failed: ${err}`);
       });
+    } else {
+      // Don't fail silently — explain WHY no approval buttons will appear.
+      // (config id is an env-var NAME, not the secret value, so it is safe to log.)
+      const describeRef = (v: unknown): string => {
+        if (v == null) return "missing";
+        if (typeof v === "string") return v ? "string(set)" : "empty-string";
+        if (typeof v === "object" && v !== null && "id" in (v as Record<string, unknown>))
+          return `secretRef(source=${(v as any).source}, id=${JSON.stringify((v as any).id)})`;
+        return typeof v;
+      };
+      logger.warn(
+        `[OASIS] Slack app NOT started — tokens unresolved, so no approval buttons will appear. ` +
+        `botToken=${botToken ? "ok" : "UNRESOLVED"} (config: ${describeRef(botRef)}); ` +
+        `appToken=${appToken ? "ok" : "UNRESOLVED"} (config: ${describeRef(appRef)}). ` +
+        `Ensure OASIS_BOT_TOKEN/OASIS_APP_TOKEN exist in ~/.openclaw/.env and oasisBotToken/oasisAppToken are set in the plugin config.`
+      );
     }
   },
 });

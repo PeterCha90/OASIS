@@ -59,7 +59,7 @@ export async function resolveApprovalOneShot(
           const clientId = "cli"; const clientMode = "cli"; const role = "operator";
           const scopes = ["operator.admin", "operator.read", "operator.write", "operator.approvals"];
           const connectParams: any = {
-            minProtocol: 3, maxProtocol: 3,
+            minProtocol: 3, maxProtocol: 4,
             client: { id: clientId, displayName: "OASIS", version: "2026.3.28", platform: process.platform, mode: clientMode },
             role, scopes,
             auth: authToken ? { token: authToken } : undefined,

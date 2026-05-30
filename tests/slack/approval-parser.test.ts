@@ -96,3 +96,45 @@ describe("parseApprovalMessage", () => {
     expect(parsed!.approvalId).toBe("PLUGIN:aabbccdd-1234-5678-9abc-def012345678");
   });
 });
+
+// openclaw >=2026.5 renders plugin approvals as native Block Kit mrkdwn:
+// the id appears as a bold "*Approval ID:* plugin:<uuid>" line (note the
+// asterisk between "ID:" and "plugin:"), which the old /ID:\s*(plugin:...)/
+// regex failed to match — so OASIS never posted its threaded buttons.
+const NATIVE_MESSAGE = `*Plugin approval required*
+
+*Request*
+🏝️ OASIS [0.7] Privilege escalation
+
+*Approval ID:* plugin:a1b2c3d4-e5f6-7890-abcd-ef1234567890
+*Risk Score:* 0.7 / 1.0
+*Detected:* Privilege escalation
+*Command:* sudo rm -rf /tmp/test`;
+
+describe("parseApprovalMessage — openclaw 2026.5 native mrkdwn format", () => {
+  test("parses approvalId from bold *Approval ID:* line", () => {
+    const parsed = parseApprovalMessage(NATIVE_MESSAGE);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.approvalId).toBe("plugin:a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+  });
+
+  test("parses riskScore from bracket notation in native format", () => {
+    const parsed = parseApprovalMessage(NATIVE_MESSAGE);
+    expect(parsed!.riskScore).toBe("0.7");
+  });
+
+  test("parses detected field in native format", () => {
+    const parsed = parseApprovalMessage(NATIVE_MESSAGE);
+    expect(parsed!.detected).toContain("Privilege escalation");
+  });
+
+  test("parses command param from bold *Command:* line", () => {
+    const parsed = parseApprovalMessage(NATIVE_MESSAGE);
+    expect(parsed!.parameters).toContain("sudo rm -rf /tmp/test");
+  });
+
+  test("still rejects a native message with no plugin id", () => {
+    const noId = `*Plugin approval required*\n\n*Request*\nsomething`;
+    expect(parseApprovalMessage(noId)).toBeNull();
+  });
+});

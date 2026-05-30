@@ -6,3 +6,4 @@ dist/
 !jest.config.js
 .DS_Store
 .env
+*.tgz
