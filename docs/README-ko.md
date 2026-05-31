@@ -109,10 +109,17 @@ oauth_config:
       - reactions:write
       - channels:history
       - channels:read
+      - groups:history
+      - im:history
+      - im:read
+      - im:write
+      - users:read
 settings:
   event_subscriptions:
     bot_events:
       - message.channels
+      - message.groups
+      - message.im
       - reaction_added
   interactivity:
     is_enabled: true
