@@ -11,6 +11,9 @@ const DEFAULT_EXECUTE_TOOLS = [
   "file_delete",
   "apply_patch",
 ];
+// The agent's own user-facing reply tool — gating it would block the agent from
+// responding (e.g. when its reply merely mentions a URL the user asked about).
+const DEFAULT_FREEPASS_TOOLS = ["message"];
 
 export const defaultConfig: OasisConfig = {
   threshold: 0.5,
@@ -19,6 +22,7 @@ export const defaultConfig: OasisConfig = {
   executeTools: DEFAULT_EXECUTE_TOOLS,
   customReadTools: [],
   customExecuteTools: [],
+  freePassTools: DEFAULT_FREEPASS_TOOLS,
   safeDomains: [],
   customPatterns: [],
   logLevel: "info",
@@ -40,6 +44,7 @@ export function loadConfig(
     customReadTools: pluginConfig.customReadTools ?? defaultConfig.customReadTools,
     customExecuteTools:
       pluginConfig.customExecuteTools ?? defaultConfig.customExecuteTools,
+    freePassTools: pluginConfig.freePassTools ?? defaultConfig.freePassTools,
     safeDomains: pluginConfig.safeDomains ?? defaultConfig.safeDomains,
     customPatterns: pluginConfig.customPatterns ?? defaultConfig.customPatterns,
     logLevel: pluginConfig.logLevel ?? defaultConfig.logLevel,

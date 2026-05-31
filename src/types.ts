@@ -25,6 +25,8 @@ export interface OasisConfig {
   executeTools: string[];
   customReadTools: string[];
   customExecuteTools: string[];
+  /** Tools that always bypass scanning (e.g. the agent's own user-facing reply tool). */
+  freePassTools: string[];
   safeDomains: string[];
   customPatterns: CustomPatternInput[];
   logLevel: "debug" | "info" | "warn" | "error";

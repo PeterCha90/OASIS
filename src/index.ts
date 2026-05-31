@@ -41,7 +41,24 @@ function summarizeParams(toolName: string, params: Record<string, unknown>): str
   return json.length > 200 ? json.slice(0, 200) + "…" : json;
 }
 
-function formatDescription(
+// openclaw's plugin.approval.request schema rejects the whole request if these
+// are exceeded (title maxLength 80, description maxLength 256), which silently
+// blocks the tool call. Clamp to stay within the limits.
+const APPROVAL_TITLE_MAX = 80;
+const APPROVAL_DESCRIPTION_MAX = 256;
+
+function clampLen(s: string, max: number): string {
+  return s.length <= max ? s : s.slice(0, max - 1) + "…";
+}
+
+export function formatTitle(scanResult: { score: number; reasons: string[] }): string {
+  return clampLen(
+    `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
+    APPROVAL_TITLE_MAX,
+  );
+}
+
+export function formatDescription(
   scanResult: { score: number; reasons: string[] },
   toolName: string,
   params: Record<string, unknown>,
@@ -51,7 +68,7 @@ function formatDescription(
     `Detected: ${scanResult.reasons.join(", ")}`,
     summarizeParams(toolName, params),
   ];
-  return parts.join("\n");
+  return clampLen(parts.join("\n"), APPROVAL_DESCRIPTION_MAX);
 }
 
 /**
@@ -66,6 +83,10 @@ export async function handleBeforeToolCall(
   // 0. Skip if previously allow-always'd
   if (isAllowed(toolName, params)) return {};
 
+  // 0b. Free-pass tools (e.g. the agent's own reply tool) — never gate these,
+  // otherwise the agent can't respond when its message merely mentions a URL.
+  if (config.freePassTools.includes(toolName)) return {};
+
   // 1. Tool classification
   const classification = classifyTool(toolName, config);
 
@@ -75,7 +96,7 @@ export async function handleBeforeToolCall(
     if (scanResult.score > 0) {
       return {
         requireApproval: {
-          title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
+          title: formatTitle(scanResult),
           description: formatDescription(scanResult, toolName, params),
           severity: "warning",
           timeoutMs: config.approvalTimeoutMs,
@@ -114,7 +135,7 @@ export async function handleBeforeToolCall(
 
     return {
       requireApproval: {
-        title: `🏝️ OASIS [${scanResult.score}] ${scanResult.reasons.join(", ")}`,
+        title: formatTitle(scanResult),
         description: formatDescription(scanResult, toolName, params),
         severity,
         timeoutMs: config.approvalTimeoutMs,
